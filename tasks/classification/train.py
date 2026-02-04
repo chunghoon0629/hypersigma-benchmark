@@ -27,8 +27,8 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from downstream_task_head.utils.result_manager import ResultManager, ClassificationMetrics
 
-# Default data directory (relative to hypersigma-benchmark root)
-DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'classification')
+# Default data directory (project benchmark data)
+DEFAULT_DATA_DIR = os.path.join(PROJECT_ROOT, 'data', 'benchmark', 'classification')
 
 from hypersigma.models.task_heads import SSClassificationHead, ClassificationHead
 from hypersigma.utils.metrics import compute_classification_metrics
@@ -43,8 +43,10 @@ def load_dataset(dataset: str, data_dir: str):
     dataset_lower = dataset.lower()
 
     if dataset_lower in ['indian_pines', 'indianpines']:
-        data = sio.loadmat(os.path.join(data_dir, 'Indian_pines_corrected.mat'))
-        gt = sio.loadmat(os.path.join(data_dir, 'Indian_pines_gt.mat'))
+        # Data in IndianPines subdirectory
+        ds_dir = os.path.join(data_dir, 'IndianPines')
+        data = sio.loadmat(os.path.join(ds_dir, 'Indian_pines_corrected.mat'))
+        gt = sio.loadmat(os.path.join(ds_dir, 'Indian_pines_gt.mat'))
         # Handle different key names
         if 'data' in data:
             cube = data['data']
@@ -55,8 +57,10 @@ def load_dataset(dataset: str, data_dir: str):
         else:
             ground_truth = gt['indian_pines_gt']
     elif dataset_lower in ['pavia_university', 'paviau', 'pavia']:
-        data = sio.loadmat(os.path.join(data_dir, 'paviaU.mat'))
-        gt = sio.loadmat(os.path.join(data_dir, 'paviaU_gt.mat'))
+        # Data in PaviaU subdirectory
+        ds_dir = os.path.join(data_dir, 'PaviaU')
+        data = sio.loadmat(os.path.join(ds_dir, 'paviaU.mat'))
+        gt = sio.loadmat(os.path.join(ds_dir, 'paviaU_gt.mat'))
         # Handle different key names
         if 'ori_data' in data:
             cube = data['ori_data']
@@ -67,16 +71,20 @@ def load_dataset(dataset: str, data_dir: str):
         else:
             ground_truth = gt['paviaU_gt']
     elif dataset_lower == 'houston':
-        data = sio.loadmat(os.path.join(data_dir, 'Houston.mat'))
-        gt = sio.loadmat(os.path.join(data_dir, 'Houston_gt.mat'))
-        if 'Houston' in data:
-            cube = data['Houston']
-        else:
-            cube = data['data']
-        if 'Houston_gt' in gt:
-            ground_truth = gt['Houston_gt']
-        else:
-            ground_truth = gt['gt']
+        # Data in Houston subdirectory (note: lowercase filenames)
+        ds_dir = os.path.join(data_dir, 'Houston')
+        data = sio.loadmat(os.path.join(ds_dir, 'houston.mat'))
+        gt = sio.loadmat(os.path.join(ds_dir, 'houston_gt.mat'))
+        # Find the data key
+        for key in data.keys():
+            if not key.startswith('_'):
+                cube = data[key]
+                break
+        # Find the gt key
+        for key in gt.keys():
+            if not key.startswith('_'):
+                ground_truth = gt[key]
+                break
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 

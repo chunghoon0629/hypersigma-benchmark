@@ -28,7 +28,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from downstream_task_head.utils.result_manager import ResultManager, DenoisingMetrics
 
-# WDC Mall data directory
+# WDC Mall data directory (project benchmark data)
 WDC_DATA_DIR = os.path.join(PROJECT_ROOT, 'data', 'benchmark', 'denoising', 'WDC')
 
 from hypersigma.models.task_heads import DenoisingHead

@@ -28,8 +28,8 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from downstream_task_head.utils.result_manager import ResultManager, ChangeDetectionMetrics
 
-# Default data directory (relative to hypersigma-benchmark root)
-DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'change_detection')
+# Default data directory (project benchmark data)
+DEFAULT_DATA_DIR = os.path.join(PROJECT_ROOT, 'data', 'benchmark', 'change_detection')
 
 from hypersigma.models.task_heads import ChangeDetectionHead, SSChangeDetectionHead
 
@@ -68,6 +68,7 @@ def get_dataset_info(dataset):
         'Farmland': {'channels': 155, 'patch_size': 5, 'seg_patches': 1},
         'BayArea': {'channels': 224, 'patch_size': 15, 'seg_patches': 2},
         'Barbara': {'channels': 224, 'patch_size': 15, 'seg_patches': 2},
+        'SantaBarbara': {'channels': 224, 'patch_size': 15, 'seg_patches': 2},
     }
     if dataset not in info:
         raise ValueError(f"Unknown dataset: {dataset}")
@@ -111,6 +112,25 @@ def load_bayarea_data(data_dir):
     return t1, t2, gt, uc_position, c_position
 
 
+def load_santabarbara_data(data_dir):
+    """Load Santa Barbara dataset."""
+    t1 = sio.loadmat(os.path.join(data_dir, 'barbara_2013.mat'))['HypeRvieW']
+    t2 = sio.loadmat(os.path.join(data_dir, 'barbara_2014.mat'))['HypeRvieW']
+    gt = sio.loadmat(os.path.join(data_dir, 'barbara_gtChanges.mat'))['HypeRvieW']
+
+    # GT: 0=unknown, 1=changed, 2=unchanged (same format as BayArea)
+    binary_gt = np.zeros_like(gt)
+    binary_gt[gt == 1] = 1  # changed
+    binary_gt[gt == 2] = 0  # unchanged
+
+    # Get labeled positions only (exclude unknown class 0)
+    labeled_mask = gt > 0
+    uc_position = np.array(np.where((gt == 2) & labeled_mask)).T
+    c_position = np.array(np.where((gt == 1) & labeled_mask)).T
+
+    return t1, t2, gt, uc_position, c_position
+
+
 def load_data(dataset, data_dir):
     """Load dataset based on name."""
     if dataset == 'Hermiston':
@@ -126,6 +146,17 @@ def load_data(dataset, data_dir):
             if os.path.exists(os.path.join(path, 'Bay_Area_2013.mat')):
                 return load_bayarea_data(path)
         raise ValueError(f"BayArea data not found in {data_dir}")
+    elif dataset == 'SantaBarbara':
+        # Try multiple path patterns
+        possible_paths = [
+            os.path.join(data_dir, 'SantaBarbara', 'mat'),
+            os.path.join(data_dir, 'santaBarbara', 'mat'),
+            data_dir,
+        ]
+        for path in possible_paths:
+            if os.path.exists(os.path.join(path, 'barbara_2013.mat')):
+                return load_santabarbara_data(path)
+        raise ValueError(f"SantaBarbara data not found in {data_dir}")
     else:
         raise ValueError(f"Dataset {dataset} not yet supported")
 
@@ -288,7 +319,7 @@ def evaluate(model, test_loader, gt_shape, test_positions, dataset):
 def main():
     parser = argparse.ArgumentParser(description='HyperSIGMA Change Detection')
     parser.add_argument('--dataset', type=str, default='Hermiston',
-                        choices=['Hermiston', 'BayArea', 'Barbara', 'Farmland'])
+                        choices=['Hermiston', 'BayArea', 'SantaBarbara', 'Barbara', 'Farmland'])
     parser.add_argument('--data_dir', type=str, default=DEFAULT_DATA_DIR)
     parser.add_argument('--mode', type=str, default='ss', choices=['sa', 'ss'],
                         help='sa=spatial-only, ss=spectral-spatial')

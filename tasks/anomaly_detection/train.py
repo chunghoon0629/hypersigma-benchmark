@@ -28,8 +28,8 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from downstream_task_head.utils.result_manager import ResultManager, AnomalyDetectionMetrics
 
-# Default data directory (relative to hypersigma-benchmark root)
-DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'anomaly_detection')
+# Default data directory (project benchmark data)
+DEFAULT_DATA_DIR = os.path.join(PROJECT_ROOT, 'data', 'benchmark', 'anomaly_detection', 'Pavia')
 
 from hypersigma.models.task_heads import AnomalyDetectionHead, SSAnomalyDetectionHead
 from hypersigma.utils.metrics import compute_auc_scores

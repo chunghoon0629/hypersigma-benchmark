@@ -28,8 +28,8 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from downstream_task_head.utils.result_manager import ResultManager, TargetDetectionMetrics
 
-# Default data directory (relative to hypersigma-benchmark root)
-DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'target_detection')
+# Default data directory (project benchmark data)
+DEFAULT_DATA_DIR = os.path.join(PROJECT_ROOT, 'data', 'benchmark', 'target_detection', 'SanDiego')
 
 from hypersigma.models.task_heads import TargetDetectionHead, SSTargetDetectionHead
 
