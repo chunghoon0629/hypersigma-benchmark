@@ -1,0 +1,278 @@
+{
+  "classification": {
+    "paviau": {
+      "n_runs": 10,
+      "overall_accuracy": {
+        "mean": 0.96817,
+        "std": 0.010328412269076015,
+        "n": 10
+      },
+      "average_accuracy": {
+        "mean": 0.9735900000000001,
+        "std": 0.007402492823367005,
+        "n": 10
+      },
+      "kappa": {
+        "mean": 0.95565,
+        "std": 0.014204101520335601,
+        "n": 10
+      },
+      "f1_weighted": {
+        "mean": 0.96871,
+        "std": 0.00974499358645248,
+        "n": 10
+      },
+      "f1_macro": {
+        "mean": 0.9579000000000001,
+        "std": 0.014153162190832121,
+        "n": 10
+      },
+      "per_class_accuracy": {
+        "mean": 0.9735994903302043,
+        "std": 0.02390434397109113,
+        "n": 10
+      }
+    },
+    "indian_pines": {
+      "n_runs": 10,
+      "overall_accuracy": {
+        "mean": 0.8848499999999999,
+        "std": 0.019946641321285145,
+        "n": 10
+      },
+      "average_accuracy": {
+        "mean": 0.9355,
+        "std": 0.0134861410344101,
+        "n": 10
+      },
+      "kappa": {
+        "mean": 0.8687999999999999,
+        "std": 0.022449008886808338,
+        "n": 10
+      },
+      "f1_weighted": {
+        "mean": 0.8857800000000001,
+        "std": 0.019348633026650738,
+        "n": 10
+      },
+      "f1_macro": {
+        "mean": 0.8508699999999999,
+        "std": 0.03519073883850694,
+        "n": 10
+      },
+      "per_class_accuracy": {
+        "mean": 0.9354968748599862,
+        "std": 0.07386252204252994,
+        "n": 10
+      },
+      "seg_overall_accuracy": {
+        "mean": 0.8926399999999999,
+        "std": 0.01865702012648324,
+        "n": 10
+      },
+      "seg_average_accuracy": {
+        "mean": 0.9412499999999999,
+        "std": 0.011464663100152568,
+        "n": 10
+      },
+      "seg_kappa": {
+        "mean": 0.8786099999999999,
+        "std": 0.02085936000935791,
+        "n": 10
+      },
+      "seg_per_class_accuracy": {
+        "mean": 0.9412622895826622,
+        "std": 0.06944315292859599,
+        "n": 10
+      },
+      "total_pixels_evaluated": {
+        "mean": 10249.0,
+        "std": 0.0,
+        "n": 10
+      }
+    }
+  },
+  "anomaly_detection": {
+    "pavia": {
+      "n_runs": 1,
+      "auc_roc": {
+        "mean": 0.8370999999999998,
+        "std": 0.0,
+        "n": 1
+      },
+      "auc_roc_std": {
+        "mean": 1.1102230246251565e-16,
+        "std": 0.0,
+        "n": 1
+      }
+    }
+  },
+  "change_detection": {
+    "BayArea": {
+      "n_runs": 1,
+      "OA": {
+        "mean": 0.9889,
+        "std": 0.0,
+        "n": 1
+      },
+      "kappa": {
+        "mean": 0.9776,
+        "std": 0.0,
+        "n": 1
+      },
+      "F1": {
+        "mean": 0.9896,
+        "std": 0.0,
+        "n": 1
+      },
+      "precision": {
+        "mean": 0.9908,
+        "std": 0.0,
+        "n": 1
+      },
+      "recall": {
+        "mean": 0.9883,
+        "std": 0.0,
+        "n": 1
+      }
+    },
+    "Hermiston": {
+      "n_runs": 1,
+      "OA": {
+        "mean": 0.9856,
+        "std": 0.0,
+        "n": 1
+      },
+      "kappa": {
+        "mean": 0.9381,
+        "std": 0.0,
+        "n": 1
+      },
+      "F1": {
+        "mean": 0.9464,
+        "std": 0.0,
+        "n": 1
+      },
+      "precision": {
+        "mean": 0.9055,
+        "std": 0.0,
+        "n": 1
+      },
+      "recall": {
+        "mean": 0.9912,
+        "std": 0.0,
+        "n": 1
+      }
+    }
+  },
+  "target_detection_sa": {
+    "Sandiego": {
+      "n_runs": 1,
+      "loss": {
+        "mean": 0.0,
+        "std": 0.0,
+        "n": 1
+      },
+      "AUC_ROC": {
+        "mean": 1.0,
+        "std": 0.0,
+        "n": 1
+      },
+      "AUC_PR": {
+        "mean": 1.0,
+        "std": 0.0,
+        "n": 1
+      },
+      "F1": {
+        "mean": 1.0,
+        "std": 0.0,
+        "n": 1
+      },
+      "threshold": {
+        "mean": 1.0,
+        "std": 0.0,
+        "n": 1
+      }
+    }
+  },
+  "target_detection_ss": {
+    "Sandiego": {
+      "n_runs": 1,
+      "loss": {
+        "mean": 0.0,
+        "std": 0.0,
+        "n": 1
+      },
+      "AUC_ROC": {
+        "mean": 1.0,
+        "std": 0.0,
+        "n": 1
+      },
+      "AUC_PR": {
+        "mean": 1.0,
+        "std": 0.0,
+        "n": 1
+      },
+      "F1": {
+        "mean": 1.0,
+        "std": 0.0,
+        "n": 1
+      },
+      "threshold": {
+        "mean": 1.0,
+        "std": 0.0,
+        "n": 1
+      }
+    }
+  },
+  "denoising": {
+    "WDC": {
+      "n_runs": 1,
+      "PSNR": {
+        "mean": 26.0369,
+        "std": 0.0,
+        "n": 1
+      },
+      "SSIM": {
+        "mean": 0.9459,
+        "std": 0.0,
+        "n": 1
+      },
+      "SAM": {
+        "mean": 9.6073,
+        "std": 0.0,
+        "n": 1
+      }
+    }
+  },
+  "unmixing_sa": {
+    "Urban4": {
+      "n_runs": 1,
+      "abundance_RMSE": {
+        "mean": 0.024271,
+        "std": 0.0,
+        "n": 1
+      },
+      "reconstruction_SAM": {
+        "mean": 3.9087,
+        "std": 0.0,
+        "n": 1
+      }
+    }
+  },
+  "unmixing_ss": {
+    "Urban4": {
+      "n_runs": 1,
+      "abundance_RMSE": {
+        "mean": 0.025209,
+        "std": 0.0,
+        "n": 1
+      },
+      "reconstruction_SAM": {
+        "mean": 3.9152,
+        "std": 0.0,
+        "n": 1
+      }
+    }
+  }
+}

@@ -559,7 +559,7 @@ def main():
         'timestamp': datetime.now().isoformat(),
     }
 
-    result_file = os.path.join(mode_dir, f'result_{args.dataset.lower()}_{args.mode}.json')
+    result_file = os.path.join(mode_dir, f'result_{args.dataset.lower()}_{args.mode}_seed{args.seed}.json')
     with open(result_file, 'w') as f:
         json.dump(result, f, indent=2)
     print(f"\nResults saved to {result_file}")

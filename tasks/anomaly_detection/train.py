@@ -505,9 +505,8 @@ def main():
         results[6, run] = tes_time2 - tes_time1
 
         if aucs['auc_roc'] >= best_auc:
-            torch.save(net, os.path.join(save_path, f'HAD_{flag}.pth'))
             best_auc = aucs['auc_roc']
-            np.save(os.path.join(save_path, f'HAD_{flag}_pre_map.npy'), y_tes_pred)
+            # Model/prediction saving disabled to save disk space
 
     # Summary
     results[:, -2] = np.mean(results[:, 0:-2], axis=1)
@@ -515,7 +514,7 @@ def main():
 
     print('\n===== Final Results =====')
     print(f'AUC-ROC: {results[0, -2]:.4f} +/- {results[0, -1]:.4f}')
-    scio.savemat(os.path.join(save_path, f'HAD_{flag}.mat'), {'data': results})
+    # .mat saving disabled - using JSON instead
 
     # Save JSON results
     result_json = {

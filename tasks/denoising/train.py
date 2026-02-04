@@ -426,10 +426,7 @@ def main():
 
                 if metrics['PSNR'] > best_psnr:
                     best_psnr = metrics['PSNR']
-                    # Save best model
-                    os.makedirs(args.output_dir, exist_ok=True)
-                    best_model_file = os.path.join(args.output_dir, f'model_wdc_best.pth')
-                    torch.save(model.state_dict(), best_model_file)
+                    # Model saving disabled to save disk space
 
         train_time = time.time() - t0
         print(f"\nTraining completed in {train_time:.1f}s")
@@ -478,15 +475,12 @@ def main():
             'timestamp': datetime.now().isoformat(),
         }
 
-        result_file = os.path.join(args.output_dir, 'result_wdc.json')
+        result_file = os.path.join(args.output_dir, f'result_wdc_seed{args.seed}.json')
         with open(result_file, 'w') as f:
             json.dump(result, f, indent=2)
         print(f"\nResults saved to {result_file}")
 
-        # Save final model
-        model_file = os.path.join(args.output_dir, 'model_wdc.pth')
-        torch.save(model.state_dict(), model_file)
-        print(f"Model saved to {model_file}")
+        # Model saving disabled to save disk space
 
         return
 
@@ -624,15 +618,12 @@ def main():
         'timestamp': datetime.now().isoformat(),
     }
 
-    result_file = os.path.join(args.output_dir, f'result_{args.dataset.lower()}.json')
+    result_file = os.path.join(args.output_dir, f'result_{args.dataset.lower()}_seed{args.seed}.json')
     with open(result_file, 'w') as f:
         json.dump(result, f, indent=2)
     print(f"\nResults saved to {result_file}")
 
-    # Save model
-    model_file = os.path.join(args.output_dir, f'model_{args.dataset.lower()}.pth')
-    torch.save(model.state_dict(), model_file)
-    print(f"Model saved to {model_file}")
+    # Model saving disabled to save disk space
 
 
 if __name__ == '__main__':
