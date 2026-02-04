@@ -49,5 +49,5 @@
 |--------|----------|------|------|
 | HAD (Anomaly Detection) | Pavia | [had_pavia.md](val_results/had_pavia.md) | ✅ 완료 |
 | Change Detection | Hermiston / Bay Area | [change_detection.md](val_results/change_detection.md) | ⚠️ Layer Decay 미적용 |
-| Unmixing | Urban4 | [unmixing.md](val_results/unmixing.md) | ❌ 전면 수정 필요 |
-| Target Detection | AVIRIS | [target_detection.md](val_results/target_detection.md) | ❌ 전면 수정 필요 |
+| Unmixing | Urban4 | [unmixing.md](val_results/unmixing.md) | ✅ 완료 (VCA/증강 선택적) |
+| Target Detection | AVIRIS | [target_detection.md](val_results/target_detection.md) | ✅ 완료 |
