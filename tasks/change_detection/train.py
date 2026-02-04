@@ -30,6 +30,8 @@ sys.path.insert(0, HYPERSIGMA_ROOT)
 DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'change_detection')
 
 from hypersigma.models.task_heads import ChangeDetectionHead, SSChangeDetectionHead
+from hypersigma.mmcv_custom import LayerDecayOptimizerConstructor_ViT
+from mmengine.optim import build_optim_wrapper
 
 
 def setup_seed(seed):
@@ -370,10 +372,17 @@ def main():
 
     model = model.cuda()
 
-    # Loss and optimizer
+    # Loss and optimizer with Layer Decay
     criterion = nn.CrossEntropyLoss().cuda()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.05)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs, eta_min=0)
+
+    # Use Layer Decay optimizer (matching original HyperSIGMA implementation)
+    optim_wrapper = dict(
+        optimizer=dict(type='AdamW', lr=args.lr, betas=(0.9, 0.999), weight_decay=0.05),
+        constructor='LayerDecayOptimizerConstructor_ViT',
+        paramwise_cfg=dict(num_layers=12, layer_decay_rate=0.9)
+    )
+    optimizer = build_optim_wrapper(model, optim_wrapper)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer.optimizer, args.epochs, eta_min=0)
 
     # Training
     print("\nStarting training...")

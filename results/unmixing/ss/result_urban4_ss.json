@@ -6,12 +6,12 @@
   "num_endmembers": 4,
   "seed": 42,
   "metrics": {
-    "abundance_RMSE": 0.024966,
-    "reconstruction_SAM": 3.9176
+    "abundance_RMSE": 0.025209,
+    "reconstruction_SAM": 3.9152
   },
   "best_metrics": {
-    "abundance_RMSE": 0.023797,
-    "reconstruction_SAM": 3.9322
+    "abundance_RMSE": 0.024491,
+    "reconstruction_SAM": 3.9182
   },
   "config": {
     "dataset": "Urban4",
@@ -27,5 +27,5 @@
     "num_tokens": 100,
     "seed": 42
   },
-  "timestamp": "2026-02-03T20:57:07.877364"
+  "timestamp": "2026-02-04T02:31:46.005012"
 }

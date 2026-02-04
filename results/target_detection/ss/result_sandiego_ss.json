@@ -1,36 +1,48 @@
 {
   "task": "target_detection",
-  "dataset": "SanDiego",
+  "dataset": "Sandiego",
   "model": "HyperSIGMA",
   "mode": "ss",
-  "seed": 7777,
+  "seed": 42,
   "metrics": {
-    "loss": 0.020233,
-    "AUC_ROC": 0.9995,
-    "AUC_PR": 0.9407,
-    "F1": 0.8679,
-    "threshold": 0.9977
+    "loss": 0.009916,
+    "AUC_ROC": 0.0,
+    "AUC_PR": 0.0,
+    "F1": 0.0,
+    "threshold": 0.5
   },
   "best_metrics": {
-    "loss": 0.023802,
-    "AUC_ROC": 0.9995,
-    "AUC_PR": 0.9391,
-    "F1": 0.8679,
-    "threshold": 0.9982
+    "loss": 0.009916,
+    "AUC_ROC": 0.0,
+    "AUC_PR": 0.0,
+    "F1": 0.0,
+    "threshold": 0.5
   },
   "config": {
-    "dataset": "SanDiego",
-    "data_dir": "../data/benchmark/target_detection/SanDiego",
+    "dataset": "Sandiego",
+    "data_dir": "/home/jovyan/gnew-b200-2-datavol-1/chlee/Domain-independent-SpectralFM/hypersigma-benchmark/tasks/target_detection/../../data/target_detection",
     "mode": "ss",
     "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
     "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
-    "epochs": 50,
-    "batch_size": 32,
-    "lr": 0.0001,
-    "patch_size": 7,
-    "train_ratio": 0.5,
+    "epochs": 10,
+    "batch_size": 2,
+    "lr": 6e-05,
+    "weight_decay": 0.0005,
+    "patch_size": 32,
+    "overlap": 16,
+    "train_ratio": 0.8,
     "num_tokens": 100,
-    "seed": 7777
+    "target_ratio": 0.0015,
+    "background_ratio": 0.3,
+    "normalization": "StandardScaler",
+    "loss": "BCEWithLogitsLoss (masked for ignore=255)",
+    "optimizer": "AdamW with LayerDecay(0.9)",
+    "seed": 42
   },
-  "timestamp": "2026-02-03T20:14:51.489434"
+  "pseudo_label_stats": {
+    "n_target": 15,
+    "n_background": 3001,
+    "n_ignore": 6984
+  },
+  "timestamp": "2026-02-04T03:39:34.190128"
 }
