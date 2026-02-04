@@ -405,10 +405,12 @@ def main():
         print(f"  {k}: {v}")
 
     # Save results using ResultManager
+    results_dir = os.path.join(HYPERSIGMA_ROOT, 'results')
     manager = ResultManager(
         task="unmixing",
         dataset=args.dataset,
         checkpoint_path=args.spat_weights,
+        output_base_dir=results_dir,
         experiment_name="hypersigma_benchmark"
     )
     manager.set_config(experiment_config={

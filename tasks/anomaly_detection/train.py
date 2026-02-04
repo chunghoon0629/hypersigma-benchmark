@@ -518,10 +518,12 @@ def main():
     print(f'AUC-ROC: {results[0, -2]:.4f} +/- {results[0, -1]:.4f}')
 
     # Save results using ResultManager
+    results_dir = os.path.join(HYPERSIGMA_ROOT, 'results')
     manager = ResultManager(
         task="anomaly_detection",
         dataset=args.dataset,
         checkpoint_path=args.spat_weights,
+        output_base_dir=results_dir,
         experiment_name="hypersigma_benchmark"
     )
     manager.set_config(experiment_config={

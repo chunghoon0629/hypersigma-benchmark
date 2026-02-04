@@ -378,10 +378,12 @@ def main():
     print(f"Kappa: {np.mean(kappa_list):.4f} +/- {np.std(kappa_list):.4f}")
 
     # Save results using ResultManager
+    results_dir = os.path.join(HYPERSIGMA_ROOT, 'results')
     manager = ResultManager(
         task="classification",
         dataset=args.dataset,
         checkpoint_path=args.spat_weights,
+        output_base_dir=results_dir,
         experiment_name="hypersigma_benchmark"
     )
     manager.set_config(experiment_config={

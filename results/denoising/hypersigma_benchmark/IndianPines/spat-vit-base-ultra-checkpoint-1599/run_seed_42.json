@@ -1,0 +1,33 @@
+{
+  "schema_version": "2.0",
+  "task": "denoising",
+  "dataset": "IndianPines",
+  "checkpoint_name": "spat-vit-base-ultra-checkpoint-1599",
+  "checkpoint_path": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+  "experiment_name": "hypersigma_benchmark",
+  "model_config": {},
+  "experiment_config": {
+    "dataset": "IndianPines",
+    "data_dir": "/home/jovyan/gnew-b200-2-datavol-1/chlee/Domain-independent-SpectralFM/hypersigma-benchmark/tasks/denoising/../../data/classification",
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
+    "epochs": 2,
+    "batch_size": 4,
+    "lr": 0.0001,
+    "patch_size": 30,
+    "sigma_range": [
+      10,
+      70
+    ],
+    "num_tokens": 100,
+    "model": "HyperSIGMA"
+  },
+  "seed": 42,
+  "metrics": {
+    "PSNR": 17.8235,
+    "SSIM": 0.4477,
+    "SAM": 24.8078,
+    "RMSE": null
+  },
+  "timestamp": "2026-02-04T07:40:23.532745"
+}
