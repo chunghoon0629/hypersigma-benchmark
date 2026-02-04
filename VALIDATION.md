@@ -48,3 +48,4 @@
 | 태스크 | 데이터셋 | 문서 | 상태 |
 |--------|----------|------|------|
 | HAD (Anomaly Detection) | Pavia | [had_pavia.md](val_results/had_pavia.md) | ✅ 완료 |
+| Change Detection | Hermiston / Bay Area | [change_detection.md](val_results/change_detection.md) | ⚠️ Layer Decay 미적용 |
