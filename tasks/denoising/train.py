@@ -28,8 +28,8 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from downstream_task_head.utils.result_manager import ResultManager, DenoisingMetrics
 
-# Default data directory (uses classification data for denoising)
-DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'classification')
+# WDC Mall data directory
+WDC_DATA_DIR = os.path.join(PROJECT_ROOT, 'data', 'benchmark', 'denoising', 'WDC')
 
 from hypersigma.models.task_heads import DenoisingHead
 
@@ -112,57 +112,59 @@ def compute_sam(img1, img2):
     return sam.mean().item() * 180 / np.pi  # Convert to degrees
 
 
-class DenoisingDataset(Data.Dataset):
-    """Dataset for denoising with on-the-fly noise addition."""
+class WDCTrainDataset(Data.Dataset):
+    """WDC Training dataset - loads pre-extracted patches."""
 
-    def __init__(self, data, patch_size=64, sigma_range=(10, 70), train=True):
-        """
-        Args:
-            data: HSI cube (H, W, C)
-            patch_size: Size of patches to extract
-            sigma_range: Range of noise sigma values
-            train: Whether this is training mode
-        """
-        self.data = data
-        self.patch_size = patch_size
+    def __init__(self, data_dir, sigma_range=(10, 70)):
+        self.data_dir = data_dir
         self.sigma_range = sigma_range
-        self.train = train
-
-        # Normalize to [0, 1]
-        self.data = (self.data - self.data.min()) / (self.data.max() - self.data.min() + 1e-8)
-
-        self.H, self.W, self.C = self.data.shape
-
-        if train:
-            # Generate random patch positions
-            self.n_patches = max(100, (self.H // patch_size) * (self.W // patch_size) * 10)
-        else:
-            # Use non-overlapping patches for evaluation
-            self.n_patches = (self.H // patch_size) * (self.W // patch_size)
-            self.grid_h = self.H // patch_size
-            self.grid_w = self.W // patch_size
+        self.patch_files = sorted([f for f in os.listdir(data_dir) if f.endswith('.mat')])
+        print(f"Found {len(self.patch_files)} training patches")
 
     def __len__(self):
-        return self.n_patches
+        return len(self.patch_files)
 
     def __getitem__(self, idx):
-        if self.train:
-            # Random patch
-            h = np.random.randint(0, self.H - self.patch_size)
-            w = np.random.randint(0, self.W - self.patch_size)
-        else:
-            # Grid-based patch
-            grid_idx = idx
-            h = (grid_idx // self.grid_w) * self.patch_size
-            w = (grid_idx % self.grid_w) * self.patch_size
+        mat_path = os.path.join(self.data_dir, self.patch_files[idx])
+        data = sio.loadmat(mat_path)
+        clean = data['data'].astype(np.float32)  # [H, W, C]
 
-        clean = self.data[h:h + self.patch_size, w:w + self.patch_size, :]
-        noisy, sigma = add_gaussian_noise(clean.copy(), self.sigma_range)
+        # Add noise on-the-fly
+        noisy, _ = add_gaussian_noise(clean.copy(), self.sigma_range)
 
         # Convert to tensor [C, H, W]
         clean = torch.from_numpy(clean.transpose(2, 0, 1)).float()
         noisy = torch.from_numpy(noisy.transpose(2, 0, 1)).float()
 
+        return noisy, clean
+
+
+class WDCTestDataset(Data.Dataset):
+    """WDC Test dataset - loads pre-generated noisy/clean pairs."""
+
+    def __init__(self, data_dir, sigma=50):
+        self.data_dir = data_dir
+        self.sigma = sigma
+
+        # Load test data for specified sigma
+        mat_path = os.path.join(data_dir, f'wdc_sigma{sigma}.mat')
+        if not os.path.exists(mat_path):
+            raise FileNotFoundError(f"Test file not found: {mat_path}")
+
+        data = sio.loadmat(mat_path)
+        self.noisy = data['input'].astype(np.float32)  # [H, W, C]
+        self.clean = data['gt'].astype(np.float32)  # [H, W, C]
+
+        self.H, self.W, self.C = self.clean.shape
+        print(f"Loaded WDC test data (sigma={sigma}): {self.clean.shape}")
+
+    def __len__(self):
+        return 1  # Single full image
+
+    def __getitem__(self, idx):
+        # Convert to tensor [C, H, W]
+        clean = torch.from_numpy(self.clean.transpose(2, 0, 1)).float()
+        noisy = torch.from_numpy(self.noisy.transpose(2, 0, 1)).float()
         return noisy, clean
 
 
@@ -221,9 +223,8 @@ def evaluate(model, test_loader):
 
 def main():
     parser = argparse.ArgumentParser(description='HyperSIGMA Denoising')
-    parser.add_argument('--dataset', type=str, default='IndianPines',
-                        help='Dataset name (uses classification data)')
-    parser.add_argument('--data_dir', type=str, default=DEFAULT_DATA_DIR)
+    parser.add_argument('--dataset', type=str, default='WDC',
+                        help='Dataset name (WDC Mall)')
     parser.add_argument('--spat_weights', type=str,
                         default='pretrained/spat-vit-base-ultra-checkpoint-1599.pth')
     parser.add_argument('--spec_weights', type=str,
@@ -246,59 +247,32 @@ def main():
     print(f"Noise sigma range: [{args.sigma_min}, {args.sigma_max}]")
     print(f"{'='*60}\n")
 
-    # Load data - use classification data for denoising
+    # Load data - WDC Mall dataset
     print("Loading data...")
-    if args.dataset.lower() == 'indianpines':
-        data_file = os.path.join(args.data_dir, 'Indian_pines_corrected.mat')
-        data = sio.loadmat(data_file)
-        # Try different possible keys
-        if 'data' in data:
-            hsi = data['data']
-        elif 'indian_pines_corrected' in data:
-            hsi = data['indian_pines_corrected']
-        else:
-            # Find the main data array
-            for k, v in data.items():
-                if not k.startswith('_') and isinstance(v, np.ndarray) and v.ndim == 3:
-                    hsi = v
-                    break
-    elif args.dataset.lower() == 'paviau':
-        data_file = os.path.join(args.data_dir, 'PaviaU.mat')
-        data = sio.loadmat(data_file)
-        if 'paviaU' in data:
-            hsi = data['paviaU']
-        else:
-            for k, v in data.items():
-                if not k.startswith('_') and isinstance(v, np.ndarray) and v.ndim == 3:
-                    hsi = v
-                    break
-    else:
-        raise ValueError(f"Unknown dataset: {args.dataset}")
+    if args.dataset.lower() != 'wdc':
+        raise ValueError(f"Only WDC dataset is supported. Got: {args.dataset}")
 
-    print(f"Data shape: {hsi.shape}")
+    # WDC has pre-processed train/test split
+    train_dir = os.path.join(WDC_DATA_DIR, 'train')
+    test_dir = os.path.join(WDC_DATA_DIR, 'test')
 
-    # Split into train/test (80/20)
-    H, W, C = hsi.shape
-    split_h = int(H * 0.8)
+    if not os.path.exists(train_dir):
+        raise FileNotFoundError(f"WDC train directory not found: {train_dir}")
 
-    train_data = hsi[:split_h, :, :]
-    test_data = hsi[split_h:, :, :]
+    # Load one patch to get dimensions
+    sample_patch = sio.loadmat(os.path.join(train_dir, 'patch_0000.mat'))['data']
+    patch_size = sample_patch.shape[0]
+    C = sample_patch.shape[2]
+    print(f"WDC patch size: {patch_size}, channels: {C}")
 
-    print(f"Train region: {train_data.shape}")
-    print(f"Test region: {test_data.shape}")
-
-    # Adjust patch size if needed
-    patch_size = min(args.patch_size, min(train_data.shape[0], train_data.shape[1]))
-    patch_size = min(patch_size, min(test_data.shape[0], test_data.shape[1]))
-
-    # Create datasets
-    train_dataset = DenoisingDataset(
-        train_data, patch_size=patch_size,
-        sigma_range=(args.sigma_min, args.sigma_max), train=True
+    # WDC uses pre-extracted patches
+    train_dataset = WDCTrainDataset(
+        train_dir,
+        sigma_range=(args.sigma_min, args.sigma_max)
     )
-    test_dataset = DenoisingDataset(
-        test_data, patch_size=patch_size,
-        sigma_range=(args.sigma_min, args.sigma_max), train=False
+    test_dataset = WDCTestDataset(
+        test_dir,
+        sigma=args.sigma_max  # Use max sigma for testing
     )
 
     train_loader = Data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2)
@@ -360,7 +334,6 @@ def main():
     )
     manager.set_config(experiment_config={
         'dataset': args.dataset,
-        'data_dir': args.data_dir,
         'spat_weights': args.spat_weights,
         'spec_weights': args.spec_weights,
         'epochs': args.epochs,
