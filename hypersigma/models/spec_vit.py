@@ -301,10 +301,16 @@ class SpectralVisionTransformer(nn.Module):
         self.img_size = img_size
         self.NUM_TOKENS = NUM_TOKENS
         self.in_chans = in_chans
+        self.embed_dim = embed_dim
 
         self.patch_embed = PatchEmbed(img_size=img_size)
         self.spec_embed = nn.AdaptiveAvgPool1d(NUM_TOKENS)
+        # Use adaptive pooling to handle variable spatial dimensions
+        # This replaces fixed-size linear layer that caused shape mismatch
+        self.spat_pool = nn.AdaptiveAvgPool1d(embed_dim)
+        # Keep original spat_map for checkpoint loading compatibility
         self.spat_map = nn.Linear(int(img_size * img_size), embed_dim)
+        self._use_adaptive_spatial = True
 
         self.out_indices = out_indices
 
@@ -411,10 +417,11 @@ class SpectralVisionTransformer(nn.Module):
                     if 'patch_embed.proj' in k:
                         del state_dict[k]
 
-            if self.img_size != 64:
-                for k in list(state_dict.keys()):
-                    if 'spat_map' in k:
-                        del state_dict[k]
+            # Always remove spat_map from checkpoint since we use adaptive spatial pooling
+            # This also fixes size mismatches when img_size differs from checkpoint
+            for k in list(state_dict.keys()):
+                if 'spat_map' in k:
+                    del state_dict[k]
 
             # Interpolate position embedding if needed
             rank, _ = get_dist_info()
@@ -463,7 +470,13 @@ class SpectralVisionTransformer(nn.Module):
 
         x = x.transpose(1, 2)  # B, N1, Hp*Wp
         x_in = x.reshape(B, num_tokens, H, W)
-        x = self.spat_map(x)  # B, N1, C1
+
+        # Use adaptive spatial pooling to handle variable spatial dimensions
+        # This fixes the shape mismatch issue when img_size doesn't match actual input
+        if self._use_adaptive_spatial:
+            x = self.spat_pool(x)  # B, N1, embed_dim (adaptive pooling)
+        else:
+            x = self.spat_map(x)  # B, N1, C1 (fixed linear, may fail if sizes don't match)
 
         batch_size, _, embed_dim = x.size()
 

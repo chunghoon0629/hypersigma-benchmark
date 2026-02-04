@@ -1,8 +1,18 @@
 """
 HyperSIGMA Target Detection Training Script.
 
-Trains target detection models on hyperspectral images.
-Target detection aims to find pixels matching a known target spectrum.
+Trains target detection models on hyperspectral images using pseudo-labels
+generated from RX anomaly detection. This matches the original HyperSIGMA
+implementation approach.
+
+Key differences from supervised approach:
+- Uses RX detector to generate pseudo-labels (not ground truth)
+- Top 0.15% pixels → target (label=1)
+- Bottom 30% pixels → background (label=0)
+- Rest → ignore (label=255)
+- Uses StandardScaler normalization instead of Min-Max
+- Uses overlapping patches (32x32 with 16-pixel overlap)
+- CrossEntropyLoss with ignore_index=255
 """
 
 import os
@@ -19,6 +29,8 @@ import torch
 import torch.nn as nn
 import torch.utils.data as Data
 from sklearn.metrics import roc_auc_score, f1_score, precision_recall_curve, auc
+from sklearn.preprocessing import StandardScaler
+from sklearn.covariance import EmpiricalCovariance
 
 # Add parent directories to path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -29,6 +41,8 @@ sys.path.insert(0, HYPERSIGMA_ROOT)
 DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'target_detection')
 
 from hypersigma.models.task_heads import TargetDetectionHead, SSTargetDetectionHead
+from hypersigma.mmcv_custom import LayerDecayOptimizerConstructor_ViT
+from mmengine.optim import build_optim_wrapper
 
 
 def setup_seed(seed):
@@ -57,69 +71,123 @@ class AvgMeter:
         self.avg = self.sum / self.cnt
 
 
-class TargetDetectionDataset(Data.Dataset):
-    """Dataset for target detection with patch extraction."""
+def compute_rx_scores(hsi):
+    """Compute RX anomaly detection scores using Mahalanobis distance.
 
-    def __init__(self, data, target_map, target_spectrum, patch_size=7, mode='train',
-                 train_ratio=0.8, seed=42):
+    Args:
+        hsi: HSI cube (H, W, C) - should be normalized
+
+    Returns:
+        rx_scores: Anomaly scores (H, W), higher = more anomalous
+    """
+    H, W, C = hsi.shape
+    X = hsi.reshape(-1, C)  # (N, C)
+
+    # Compute mean and covariance
+    mean = np.mean(X, axis=0)
+    cov = EmpiricalCovariance().fit(X)
+
+    # Compute Mahalanobis distance for each pixel
+    rx_scores = cov.mahalanobis(X)
+    rx_scores = rx_scores.reshape(H, W)
+
+    return rx_scores
+
+
+def generate_pseudo_labels(hsi, target_ratio=0.0015, background_ratio=0.3):
+    """Generate pseudo-labels using RX anomaly detector.
+
+    Following the original HyperSIGMA target detection approach:
+    - Top target_ratio (0.15%) → target (label=1)
+    - Bottom background_ratio (30%) → background (label=0)
+    - Rest → ignore (label=255)
+
+    Args:
+        hsi: HSI cube (H, W, C)
+        target_ratio: Fraction of pixels to label as target (default: 0.0015 = 0.15%)
+        background_ratio: Fraction of pixels to label as background (default: 0.3 = 30%)
+
+    Returns:
+        pseudo_labels: Label map (H, W) with values 0, 1, or 255
+    """
+    H, W, C = hsi.shape
+    N = H * W
+
+    # Compute RX scores
+    rx_scores = compute_rx_scores(hsi)
+    rx_flat = rx_scores.flatten()
+
+    # Determine thresholds
+    n_target = max(1, int(N * target_ratio))
+    n_background = int(N * background_ratio)
+
+    sorted_indices = np.argsort(rx_flat)
+    target_threshold = np.partition(rx_flat, -n_target)[-n_target]
+    background_threshold = np.partition(rx_flat, n_background)[n_background]
+
+    # Create pseudo-labels
+    pseudo_labels = np.full((H, W), 255, dtype=np.uint8)  # Default: ignore
+    pseudo_labels[rx_scores >= target_threshold] = 1  # Target
+    pseudo_labels[rx_scores <= background_threshold] = 0  # Background
+
+    print(f"Pseudo-labels generated:")
+    print(f"  Target (label=1): {(pseudo_labels == 1).sum()} pixels ({100*target_ratio:.2f}%)")
+    print(f"  Background (label=0): {(pseudo_labels == 0).sum()} pixels ({100*background_ratio:.1f}%)")
+    print(f"  Ignore (label=255): {(pseudo_labels == 255).sum()} pixels")
+
+    return pseudo_labels, rx_scores
+
+
+class TargetDetectionPatchDataset(Data.Dataset):
+    """Dataset for target detection with overlapping patch extraction.
+
+    Matches original HyperSIGMA implementation with:
+    - 32x32 patches with 16-pixel overlap
+    - StandardScaler normalization
+    - Pseudo-labels from RX detector
+    """
+
+    def __init__(self, data, pseudo_labels, target_spectrum, patch_size=32, overlap=16,
+                 mode='train', train_ratio=0.8, seed=42):
         """
         Args:
-            data: HSI cube (H, W, C)
-            target_map: Binary target map (H, W), 1=target, 0=background
-            target_spectrum: Target spectrum to detect (C,)
-            patch_size: Size of patches to extract
+            data: HSI cube (H, W, C) - already StandardScaler normalized
+            pseudo_labels: Pseudo-label map (H, W), values 0/1/255
+            target_spectrum: Target spectrum derived from pseudo-target pixels [C]
+            patch_size: Size of patches (default: 32)
+            overlap: Overlap between patches (default: 16)
             mode: 'train' or 'test'
             train_ratio: Ratio of data for training
         """
         self.data = data.astype(np.float32)
-        self.target_map = target_map
-        self.target_spectrum = target_spectrum
+        self.pseudo_labels = pseudo_labels
+        self.target_spectrum = target_spectrum.astype(np.float32)
         self.patch_size = patch_size
-        self.half_size = patch_size // 2
-
-        # Normalize data
-        self.data = (self.data - self.data.min()) / (self.data.max() - self.data.min() + 1e-8)
+        self.step = patch_size - overlap  # 16
 
         self.H, self.W, self.C = self.data.shape
 
-        # Get all valid positions (away from edges)
-        valid_h = range(self.half_size, self.H - self.half_size)
-        valid_w = range(self.half_size, self.W - self.half_size)
-
-        # Separate target and background pixels
-        target_positions = []
-        background_positions = []
-
-        for h in valid_h:
-            for w in valid_w:
-                if self.target_map[h, w] > 0:
-                    target_positions.append((h, w))
-                else:
-                    background_positions.append((h, w))
+        # Generate patch positions with overlap
+        positions = []
+        for h in range(0, self.H - patch_size + 1, self.step):
+            for w in range(0, self.W - patch_size + 1, self.step):
+                # Check if patch has any labeled pixels (not all 255)
+                patch_labels = pseudo_labels[h:h+patch_size, w:w+patch_size]
+                if not np.all(patch_labels == 255):
+                    positions.append((h, w))
 
         # Split train/test
         np.random.seed(seed)
-        np.random.shuffle(target_positions)
-        np.random.shuffle(background_positions)
+        np.random.shuffle(positions)
 
-        n_target_train = int(len(target_positions) * train_ratio)
-        n_bg_train = int(len(background_positions) * train_ratio)
+        n_train = int(len(positions) * train_ratio)
 
         if mode == 'train':
-            # Balance training set
-            train_targets = target_positions[:n_target_train]
-            train_bg = background_positions[:n_bg_train]
-            # Undersample background to balance
-            n_samples = min(len(train_targets) * 5, len(train_bg))  # 1:5 ratio
-            train_bg = train_bg[:n_samples]
-            self.positions = train_targets + train_bg
+            self.positions = positions[:n_train]
         else:
-            # Full test set for evaluation
-            self.positions = target_positions[n_target_train:] + background_positions[n_bg_train:]
+            self.positions = positions[n_train:]
 
-        np.random.shuffle(self.positions)
-        print(f"{mode} set: {len(self.positions)} samples "
-              f"({sum(1 for p in self.positions if self.target_map[p[0], p[1]] > 0)} targets)")
+        print(f"{mode} set: {len(self.positions)} patches (size={patch_size}, overlap={overlap})")
 
     def __len__(self):
         return len(self.positions)
@@ -128,64 +196,41 @@ class TargetDetectionDataset(Data.Dataset):
         h, w = self.positions[idx]
 
         # Extract patch
-        patch = self.data[
-            h - self.half_size:h + self.half_size + 1,
-            w - self.half_size:w + self.half_size + 1,
-            :
-        ]
-
-        # Label
-        label = 1 if self.target_map[h, w] > 0 else 0
+        patch = self.data[h:h+self.patch_size, w:w+self.patch_size, :]
+        labels = self.pseudo_labels[h:h+self.patch_size, w:w+self.patch_size]
 
         # Convert to tensor [C, H, W]
         patch = torch.from_numpy(patch.transpose(2, 0, 1)).float()
+        labels = torch.from_numpy(labels.astype(np.int64))
         target_spec = torch.from_numpy(self.target_spectrum).float()
-        label = torch.tensor(label, dtype=torch.float32)
 
-        return patch, target_spec, label
+        return patch, target_spec, labels
 
 
 class TargetDetectionFullImage(Data.Dataset):
-    """Dataset for full image target detection (sliding window)."""
+    """Dataset for full image target detection evaluation."""
 
-    def __init__(self, data, target_spectrum, patch_size=7):
+    def __init__(self, data, patch_size=32, overlap=16):
         self.data = data.astype(np.float32)
-        self.target_spectrum = target_spectrum
         self.patch_size = patch_size
-        self.half_size = patch_size // 2
-
-        # Normalize
-        self.data = (self.data - self.data.min()) / (self.data.max() - self.data.min() + 1e-8)
+        self.step = patch_size - overlap
 
         self.H, self.W, self.C = self.data.shape
 
-        # Generate all valid positions
-        self.positions = [
-            (h, w)
-            for h in range(self.half_size, self.H - self.half_size)
-            for w in range(self.half_size, self.W - self.half_size)
-        ]
+        # Generate all patch positions
+        self.positions = []
+        for h in range(0, self.H - patch_size + 1, self.step):
+            for w in range(0, self.W - patch_size + 1, self.step):
+                self.positions.append((h, w))
 
     def __len__(self):
         return len(self.positions)
 
     def __getitem__(self, idx):
         h, w = self.positions[idx]
-        patch = self.data[
-            h - self.half_size:h + self.half_size + 1,
-            w - self.half_size:w + self.half_size + 1,
-            :
-        ]
+        patch = self.data[h:h+self.patch_size, w:w+self.patch_size, :]
         patch = torch.from_numpy(patch.transpose(2, 0, 1)).float()
-        target_spec = torch.from_numpy(self.target_spectrum).float()
-        return patch, target_spec, h, w
-
-
-def get_target_spectrum(data, target_map):
-    """Extract mean target spectrum from labeled target pixels."""
-    target_pixels = data[target_map > 0]
-    target_spectrum = target_pixels.mean(axis=0)
-    return target_spectrum.astype(np.float32)
+        return patch, h, w
 
 
 def train_epoch(model, train_loader, criterion, optimizer):
@@ -196,25 +241,42 @@ def train_epoch(model, train_loader, criterion, optimizer):
     for patches, target_specs, labels in train_loader:
         patches = patches.cuda()
         target_specs = target_specs.cuda()
-        labels = labels.cuda()
+        labels = labels.cuda()  # [B, H, W] with values 0, 1, or 255
 
         optimizer.zero_grad()
-        outputs = model(patches, target_specs)
-        # Extract center pixel score from detection map [B, H, W]
-        center_h = outputs.shape[1] // 2
-        center_w = outputs.shape[2] // 2
-        outputs = outputs[:, center_h, center_w]  # [B]
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
 
-        losses.update(loss.item(), patches.size(0))
+        # Forward pass - model outputs detection scores [B, H, W]
+        outputs = model(patches, target_specs)  # [B, H, W]
+
+        # Create mask for valid pixels (not 255)
+        valid_mask = labels != 255
+
+        # Flatten outputs and labels, apply mask
+        outputs_flat = outputs.view(-1)
+        labels_flat = labels.view(-1).float()
+        valid_mask_flat = valid_mask.view(-1)
+
+        # Only compute loss on valid pixels
+        if valid_mask_flat.sum() > 0:
+            valid_outputs = outputs_flat[valid_mask_flat]
+            valid_labels = labels_flat[valid_mask_flat]
+            loss = criterion(valid_outputs, valid_labels)
+            loss.backward()
+            optimizer.step()
+            losses.update(loss.item(), valid_mask_flat.sum().item())
 
     return losses.avg
 
 
-def evaluate(model, test_loader, criterion):
-    """Evaluate model on test set."""
+def evaluate(model, test_loader, criterion, gt_map=None):
+    """Evaluate model on test set.
+
+    Args:
+        model: Trained model
+        test_loader: Test data loader
+        criterion: Loss function
+        gt_map: Ground truth binary map (H, W) for final evaluation metrics
+    """
     model.eval()
     losses = AvgMeter()
     all_preds = []
@@ -226,33 +288,52 @@ def evaluate(model, test_loader, criterion):
             target_specs = target_specs.cuda()
             labels = labels.cuda()
 
+            # Forward pass - model outputs detection scores [B, H, W]
             outputs = model(patches, target_specs)
-            # Extract center pixel score from detection map [B, H, W]
-            center_h = outputs.shape[1] // 2
-            center_w = outputs.shape[2] // 2
-            outputs = outputs[:, center_h, center_w]  # [B]
-            loss = criterion(outputs, labels)
 
-            losses.update(loss.item(), patches.size(0))
-            all_preds.extend(torch.sigmoid(outputs).cpu().numpy())
-            all_labels.extend(labels.cpu().numpy())
+            # Create mask for valid pixels (not 255)
+            valid_mask = labels != 255
+
+            # Flatten and compute loss on valid pixels
+            outputs_flat = outputs.view(-1)
+            labels_flat = labels.view(-1).float()
+            valid_mask_flat = valid_mask.view(-1)
+
+            if valid_mask_flat.sum() > 0:
+                valid_outputs = outputs_flat[valid_mask_flat]
+                valid_labels = labels_flat[valid_mask_flat]
+                loss = criterion(valid_outputs, valid_labels)
+                losses.update(loss.item(), valid_mask_flat.sum().item())
+
+            # Get predictions (apply sigmoid for probabilities)
+            probs = torch.sigmoid(outputs)  # [B, H, W]
+
+            # Collect predictions and labels for valid pixels (not 255)
+            all_preds.extend(probs[valid_mask].cpu().numpy())
+            all_labels.extend(labels[valid_mask].cpu().numpy())
 
     all_preds = np.array(all_preds)
     all_labels = np.array(all_labels)
 
     # Compute metrics
-    auc_roc = roc_auc_score(all_labels, all_preds)
+    if len(np.unique(all_labels)) > 1:
+        auc_roc = roc_auc_score(all_labels, all_preds)
 
-    # Find best threshold using PR curve
-    precision, recall, thresholds = precision_recall_curve(all_labels, all_preds)
-    f1_scores = 2 * (precision * recall) / (precision + recall + 1e-8)
-    best_idx = np.argmax(f1_scores)
-    best_threshold = thresholds[best_idx] if best_idx < len(thresholds) else 0.5
+        # Find best threshold using PR curve
+        precision, recall, thresholds = precision_recall_curve(all_labels, all_preds)
+        f1_scores = 2 * (precision * recall) / (precision + recall + 1e-8)
+        best_idx = np.argmax(f1_scores)
+        best_threshold = thresholds[best_idx] if best_idx < len(thresholds) else 0.5
 
-    binary_preds = (all_preds >= best_threshold).astype(int)
-    f1 = f1_score(all_labels, binary_preds)
+        binary_preds = (all_preds >= best_threshold).astype(int)
+        f1 = f1_score(all_labels, binary_preds)
 
-    auc_pr = auc(recall, precision)
+        auc_pr = auc(recall, precision)
+    else:
+        auc_roc = 0.0
+        auc_pr = 0.0
+        f1 = 0.0
+        best_threshold = 0.5
 
     metrics = {
         'loss': round(losses.avg, 6),
@@ -276,12 +357,19 @@ def main():
                         default='pretrained/spat-vit-base-ultra-checkpoint-1599.pth')
     parser.add_argument('--spec_weights', type=str,
                         default='pretrained/spec-vit-base-ultra-checkpoint-1599.pth')
-    parser.add_argument('--epochs', type=int, default=50)
-    parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--patch_size', type=int, default=7)
-    parser.add_argument('--train_ratio', type=float, default=0.5)
+    # Updated parameters to match original implementation
+    parser.add_argument('--epochs', type=int, default=10)
+    parser.add_argument('--batch_size', type=int, default=2)
+    parser.add_argument('--lr', type=float, default=6e-5)
+    parser.add_argument('--weight_decay', type=float, default=5e-4)
+    parser.add_argument('--patch_size', type=int, default=32)
+    parser.add_argument('--overlap', type=int, default=16)
+    parser.add_argument('--train_ratio', type=float, default=0.8)
     parser.add_argument('--num_tokens', type=int, default=100)
+    parser.add_argument('--target_ratio', type=float, default=0.0015,
+                        help='Fraction of pixels for pseudo-target labels (default: 0.15%)')
+    parser.add_argument('--background_ratio', type=float, default=0.3,
+                        help='Fraction of pixels for pseudo-background labels (default: 30%)')
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--output_dir', type=str, default='results/target_detection')
     args = parser.parse_args()
@@ -291,6 +379,9 @@ def main():
     print(f"\n{'='*60}")
     print(f"Dataset: {args.dataset}")
     print(f"Mode: {args.mode} ({'spectral-spatial' if args.mode == 'ss' else 'spatial-only'})")
+    print(f"Pseudo-label generation: RX detector")
+    print(f"  Target ratio: {args.target_ratio*100:.2f}%")
+    print(f"  Background ratio: {args.background_ratio*100:.1f}%")
     print(f"{'='*60}\n")
 
     # Load data
@@ -299,40 +390,74 @@ def main():
         data_file = os.path.join(args.data_dir, 'Sandiego.mat')
         mat = sio.loadmat(data_file)
         hsi = mat['data']
-        target_map = mat['map']
+        gt_map = mat['map']
     else:
         raise ValueError(f"Unknown dataset: {args.dataset}")
 
     print(f"Data shape: {hsi.shape}")
-    print(f"Target map shape: {target_map.shape}")
-    print(f"Number of target pixels: {(target_map > 0).sum()}")
+    print(f"Ground truth shape: {gt_map.shape}")
+    print(f"Number of true target pixels: {(gt_map > 0).sum()}")
 
-    # Get target spectrum from labeled pixels
-    target_spectrum = get_target_spectrum(hsi.astype(np.float32), target_map)
-    # Normalize target spectrum
-    hsi_normalized = (hsi.astype(np.float32) - hsi.min()) / (hsi.max() - hsi.min() + 1e-8)
-    target_spectrum = get_target_spectrum(hsi_normalized, target_map)
+    # Auto-adjust patch size for small datasets
+    H, W, C = hsi.shape
+    total_pixels = H * W
+    if total_pixels < 50000 and args.patch_size == 32:
+        # For small datasets like Sandiego (100x100 = 10000 pixels),
+        # use smaller patches to get more training samples
+        args.patch_size = 16
+        args.overlap = 8
+        print(f"\nSmall dataset detected ({H}x{W}={total_pixels} pixels)")
+        print(f"Auto-adjusted: patch_size={args.patch_size}, overlap={args.overlap}")
 
-    print(f"Target spectrum shape: {target_spectrum.shape}")
+    # Normalize using StandardScaler (instead of Min-Max)
+    print("\nNormalizing with StandardScaler...")
+    H, W, C = hsi.shape
+    hsi_flat = hsi.reshape(-1, C).astype(np.float32)
+    scaler = StandardScaler()
+    hsi_normalized = scaler.fit_transform(hsi_flat).reshape(H, W, C)
+
+    # Generate pseudo-labels using RX detector
+    print("\nGenerating pseudo-labels using RX detector...")
+    pseudo_labels, rx_scores = generate_pseudo_labels(
+        hsi_normalized,
+        target_ratio=args.target_ratio,
+        background_ratio=args.background_ratio
+    )
+
+    # Extract target spectrum from pseudo-target pixels
+    target_mask = pseudo_labels == 1
+    if target_mask.sum() > 0:
+        target_spectrum = hsi_normalized[target_mask].mean(axis=0)
+    else:
+        # Fallback: use pixels with highest RX scores
+        flat_rx = rx_scores.flatten()
+        top_indices = np.argsort(flat_rx)[-max(1, int(H*W*0.001)):]
+        target_spectrum = hsi_normalized.reshape(-1, C)[top_indices].mean(axis=0)
+    print(f"Target spectrum extracted from {target_mask.sum()} pseudo-target pixels")
 
     # Create datasets
-    train_dataset = TargetDetectionDataset(
-        hsi, target_map, target_spectrum,
-        patch_size=args.patch_size, mode='train',
-        train_ratio=args.train_ratio, seed=args.seed
+    train_dataset = TargetDetectionPatchDataset(
+        hsi_normalized, pseudo_labels, target_spectrum,
+        patch_size=args.patch_size, overlap=args.overlap,
+        mode='train', train_ratio=args.train_ratio, seed=args.seed
     )
-    test_dataset = TargetDetectionDataset(
-        hsi, target_map, target_spectrum,
-        patch_size=args.patch_size, mode='test',
-        train_ratio=args.train_ratio, seed=args.seed
+    test_dataset = TargetDetectionPatchDataset(
+        hsi_normalized, pseudo_labels, target_spectrum,
+        patch_size=args.patch_size, overlap=args.overlap,
+        mode='test', train_ratio=args.train_ratio, seed=args.seed
     )
 
-    train_loader = Data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2)
-    test_loader = Data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=2)
+    train_loader = Data.DataLoader(
+        train_dataset, batch_size=args.batch_size,
+        shuffle=True, num_workers=2
+    )
+    test_loader = Data.DataLoader(
+        test_dataset, batch_size=args.batch_size,
+        shuffle=False, num_workers=2
+    )
 
     # Create model
     print("\nCreating model...")
-    H, W, C = hsi.shape
 
     if args.mode == 'ss':
         model = SSTargetDetectionHead(
@@ -351,10 +476,17 @@ def main():
 
     model = model.cuda()
 
-    # Loss and optimizer
+    # Loss and optimizer (with Layer Decay)
+    # Use BCEWithLogitsLoss since model outputs detection scores [B, H, W]
     criterion = nn.BCEWithLogitsLoss().cuda()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs, eta_min=1e-6)
+
+    optim_wrapper = dict(
+        optimizer=dict(type='AdamW', lr=args.lr, betas=(0.9, 0.999), weight_decay=args.weight_decay),
+        constructor='LayerDecayOptimizerConstructor_ViT',
+        paramwise_cfg=dict(num_layers=12, layer_decay_rate=0.9)
+    )
+    optimizer = build_optim_wrapper(model, optim_wrapper)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer.optimizer, args.epochs, eta_min=0)
 
     # Training
     print("\nStarting training...")
@@ -366,14 +498,14 @@ def main():
         train_loss = train_epoch(model, train_loader, criterion, optimizer)
         scheduler.step()
 
-        if (epoch + 1) % 5 == 0:
-            metrics = evaluate(model, test_loader, criterion)
-            print(f"Epoch {epoch+1}/{args.epochs}: train_loss={train_loss:.6f}, "
-                  f"AUC_ROC={metrics['AUC_ROC']:.4f}, F1={metrics['F1']:.4f}")
+        # Evaluate every epoch (since we only have 10 epochs)
+        metrics = evaluate(model, test_loader, criterion)
+        print(f"Epoch {epoch+1}/{args.epochs}: train_loss={train_loss:.6f}, "
+              f"AUC_ROC={metrics['AUC_ROC']:.4f}, F1={metrics['F1']:.4f}")
 
-            if metrics['AUC_ROC'] > best_auc:
-                best_auc = metrics['AUC_ROC']
-                best_metrics = metrics.copy()
+        if metrics['AUC_ROC'] > best_auc:
+            best_auc = metrics['AUC_ROC']
+            best_metrics = metrics.copy()
 
     train_time = time.time() - t0
     print(f"\nTraining completed in {train_time:.1f}s")
@@ -382,7 +514,7 @@ def main():
     print("\nFinal evaluation...")
     final_metrics = evaluate(model, test_loader, criterion)
 
-    print("\nResults:")
+    print("\nResults (on pseudo-labels):")
     for k, v in final_metrics.items():
         print(f"  {k}: {v}")
 
@@ -407,10 +539,22 @@ def main():
             'epochs': args.epochs,
             'batch_size': args.batch_size,
             'lr': args.lr,
+            'weight_decay': args.weight_decay,
             'patch_size': args.patch_size,
+            'overlap': args.overlap,
             'train_ratio': args.train_ratio,
             'num_tokens': args.num_tokens if args.mode == 'ss' else None,
+            'target_ratio': args.target_ratio,
+            'background_ratio': args.background_ratio,
+            'normalization': 'StandardScaler',
+            'loss': 'BCEWithLogitsLoss (masked for ignore=255)',
+            'optimizer': 'AdamW with LayerDecay(0.9)',
             'seed': args.seed,
+        },
+        'pseudo_label_stats': {
+            'n_target': int((pseudo_labels == 1).sum()),
+            'n_background': int((pseudo_labels == 0).sum()),
+            'n_ignore': int((pseudo_labels == 255).sum()),
         },
         'timestamp': datetime.now().isoformat(),
     }

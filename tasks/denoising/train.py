@@ -3,6 +3,10 @@ HyperSIGMA Denoising Training Script.
 
 Trains denoising models on hyperspectral images with synthetic noise.
 Uses Gaussian noise for simplicity (can be extended to complex noise).
+
+Supports:
+- IndianPines, PaviaU: Single HSI cube, noise added on-the-fly
+- WDC: Pre-processed patches with pre-generated noisy test images
 """
 
 import os
@@ -12,6 +16,7 @@ import json
 import time
 import random
 from datetime import datetime
+from glob import glob
 
 import numpy as np
 import scipy.io as sio
@@ -29,6 +34,8 @@ sys.path.insert(0, HYPERSIGMA_ROOT)
 DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'classification')
 
 from hypersigma.models.task_heads import DenoisingHead
+from hypersigma.mmcv_custom import LayerDecayOptimizerConstructor_ViT
+from mmengine.optim import build_optim_wrapper
 
 
 def setup_seed(seed):
@@ -163,6 +170,106 @@ class DenoisingDataset(Data.Dataset):
         return noisy, clean
 
 
+class WDCTrainDataset(Data.Dataset):
+    """Dataset for WDC denoising using pre-processed clean patches with on-the-fly noise."""
+
+    def __init__(self, data_dir, sigma_range=(10, 70)):
+        """
+        Args:
+            data_dir: Path to WDC data directory containing train/patch_*.mat
+            sigma_range: Range of noise sigma values for training
+        """
+        self.sigma_range = sigma_range
+        train_dir = os.path.join(data_dir, 'train')
+        self.patch_files = sorted(glob(os.path.join(train_dir, 'patch_*.mat')))
+
+        if len(self.patch_files) == 0:
+            raise ValueError(f"No training patches found in {train_dir}")
+
+        # Load first patch to get shape
+        sample = sio.loadmat(self.patch_files[0])
+        self.patch_shape = sample['data'].shape  # (64, 64, 191)
+        self.n_channels = self.patch_shape[2]
+
+        print(f"Found {len(self.patch_files)} training patches, shape: {self.patch_shape}")
+
+    def __len__(self):
+        return len(self.patch_files)
+
+    def __getitem__(self, idx):
+        # Load clean patch
+        data = sio.loadmat(self.patch_files[idx])
+        clean = data['data'].astype(np.float32)  # (64, 64, 191)
+
+        # Normalize to [0, 1]
+        clean = (clean - clean.min()) / (clean.max() - clean.min() + 1e-8)
+
+        # Add noise on-the-fly
+        noisy, sigma = add_gaussian_noise(clean.copy(), self.sigma_range)
+
+        # Convert to tensor [C, H, W]
+        clean = torch.from_numpy(clean.transpose(2, 0, 1)).float()
+        noisy = torch.from_numpy(noisy.transpose(2, 0, 1)).float()
+
+        return noisy, clean
+
+
+class WDCTestDataset(Data.Dataset):
+    """Dataset for WDC denoising using pre-generated noisy test images."""
+
+    def __init__(self, data_dir, sigma, patch_size=64):
+        """
+        Args:
+            data_dir: Path to WDC data directory containing test/wdc_sigma*.mat
+            sigma: Noise level (10, 30, 50, or 70)
+            patch_size: Size of patches for evaluation
+        """
+        self.patch_size = patch_size
+
+        test_file = os.path.join(data_dir, 'test', f'wdc_sigma{sigma}.mat')
+        if not os.path.exists(test_file):
+            raise ValueError(f"Test file not found: {test_file}")
+
+        data = sio.loadmat(test_file)
+        self.noisy = data['input'].astype(np.float32)  # (256, 256, 191)
+        self.clean = data['gt'].astype(np.float32)     # (256, 256, 191)
+
+        # Normalize both to [0, 1] using ground truth statistics
+        gt_min, gt_max = self.clean.min(), self.clean.max()
+        self.clean = (self.clean - gt_min) / (gt_max - gt_min + 1e-8)
+        self.noisy = (self.noisy - gt_min) / (gt_max - gt_min + 1e-8)
+
+        self.H, self.W, self.C = self.clean.shape
+        self.grid_h = self.H // patch_size
+        self.grid_w = self.W // patch_size
+        self.n_patches = self.grid_h * self.grid_w
+
+        print(f"Loaded test data for sigma={sigma}, shape: {self.clean.shape}, "
+              f"{self.n_patches} patches")
+
+    def __len__(self):
+        return self.n_patches
+
+    def __getitem__(self, idx):
+        h = (idx // self.grid_w) * self.patch_size
+        w = (idx % self.grid_w) * self.patch_size
+
+        clean = self.clean[h:h + self.patch_size, w:w + self.patch_size, :]
+        noisy = self.noisy[h:h + self.patch_size, w:w + self.patch_size, :]
+
+        # Convert to tensor [C, H, W]
+        clean = torch.from_numpy(clean.transpose(2, 0, 1)).float()
+        noisy = torch.from_numpy(noisy.transpose(2, 0, 1)).float()
+
+        return noisy, clean
+
+    def get_full_images(self):
+        """Return full images for whole-image evaluation."""
+        clean = torch.from_numpy(self.clean.transpose(2, 0, 1)).float()
+        noisy = torch.from_numpy(self.noisy.transpose(2, 0, 1)).float()
+        return noisy, clean
+
+
 def train_epoch(model, train_loader, criterion, optimizer):
     """Train for one epoch."""
     model.train()
@@ -216,10 +323,34 @@ def evaluate(model, test_loader):
     return metrics
 
 
+def evaluate_wdc_per_sigma(model, data_dir, patch_size):
+    """Evaluate WDC model on each sigma level separately."""
+    sigma_levels = [10, 30, 50, 70]
+    all_metrics = {}
+
+    for sigma in sigma_levels:
+        print(f"\nEvaluating sigma={sigma}...")
+        test_dataset = WDCTestDataset(data_dir, sigma=sigma, patch_size=patch_size)
+        test_loader = Data.DataLoader(test_dataset, batch_size=1, shuffle=False)
+        metrics = evaluate(model, test_loader)
+        all_metrics[f'sigma_{sigma}'] = metrics
+        print(f"  PSNR={metrics['PSNR']:.2f}, SSIM={metrics['SSIM']:.4f}, SAM={metrics['SAM']:.2f}")
+
+    # Compute average across sigma levels
+    avg_metrics = {
+        'PSNR': round(np.mean([m['PSNR'] for m in all_metrics.values()]), 4),
+        'SSIM': round(np.mean([m['SSIM'] for m in all_metrics.values()]), 4),
+        'SAM': round(np.mean([m['SAM'] for m in all_metrics.values()]), 4),
+    }
+    all_metrics['average'] = avg_metrics
+
+    return all_metrics
+
+
 def main():
     parser = argparse.ArgumentParser(description='HyperSIGMA Denoising')
     parser.add_argument('--dataset', type=str, default='IndianPines',
-                        help='Dataset name (uses classification data)')
+                        help='Dataset name (IndianPines, PaviaU, or WDC)')
     parser.add_argument('--data_dir', type=str, default=DEFAULT_DATA_DIR)
     parser.add_argument('--spat_weights', type=str,
                         default='pretrained/spat-vit-base-ultra-checkpoint-1599.pth')
@@ -243,7 +374,123 @@ def main():
     print(f"Noise sigma range: [{args.sigma_min}, {args.sigma_max}]")
     print(f"{'='*60}\n")
 
-    # Load data - use classification data for denoising
+    # Handle WDC dataset separately
+    if args.dataset.lower() == 'wdc':
+        print("Loading WDC data...")
+        train_dataset = WDCTrainDataset(args.data_dir, sigma_range=(args.sigma_min, args.sigma_max))
+        patch_size = 64  # WDC patches are 64x64
+        C = train_dataset.n_channels  # 191 bands
+
+        train_loader = Data.DataLoader(
+            train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2
+        )
+
+        # Create model
+        print("\nCreating model...")
+        model = DenoisingHead(
+            img_size=patch_size,
+            in_channels=C,
+            spat_weights=args.spat_weights,
+            spec_weights=args.spec_weights,
+            num_tokens=args.num_tokens,
+        )
+        model = model.cuda()
+
+        # Loss and optimizer with Layer Decay (matching original HyperSIGMA implementation)
+        criterion = nn.L1Loss().cuda()
+        optim_wrapper = dict(
+            optimizer=dict(type='AdamW', lr=args.lr, betas=(0.9, 0.999), weight_decay=0.05),
+            constructor='LayerDecayOptimizerConstructor_ViT',
+            paramwise_cfg=dict(num_layers=12, layer_decay_rate=0.9)
+        )
+        optimizer = build_optim_wrapper(model, optim_wrapper)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer.optimizer, args.epochs, eta_min=0)
+
+        # Training
+        print("\nStarting training...")
+        t0 = time.time()
+        best_psnr = 0
+        best_metrics = None
+
+        for epoch in range(args.epochs):
+            train_loss = train_epoch(model, train_loader, criterion, optimizer)
+            scheduler.step()
+
+            if (epoch + 1) % 10 == 0:
+                # Evaluate on sigma 30 during training as proxy
+                test_dataset = WDCTestDataset(args.data_dir, sigma=30, patch_size=patch_size)
+                test_loader = Data.DataLoader(test_dataset, batch_size=1, shuffle=False)
+                metrics = evaluate(model, test_loader)
+                print(f"Epoch {epoch+1}/{args.epochs}: loss={train_loss:.6f}, "
+                      f"PSNR(σ=30)={metrics['PSNR']:.2f}, SSIM={metrics['SSIM']:.4f}, SAM={metrics['SAM']:.2f}")
+
+                if metrics['PSNR'] > best_psnr:
+                    best_psnr = metrics['PSNR']
+                    # Save best model
+                    os.makedirs(args.output_dir, exist_ok=True)
+                    best_model_file = os.path.join(args.output_dir, f'model_wdc_best.pth')
+                    torch.save(model.state_dict(), best_model_file)
+
+        train_time = time.time() - t0
+        print(f"\nTraining completed in {train_time:.1f}s")
+
+        # Load best model for final evaluation
+        if os.path.exists(os.path.join(args.output_dir, 'model_wdc_best.pth')):
+            model.load_state_dict(torch.load(os.path.join(args.output_dir, 'model_wdc_best.pth')))
+            print("Loaded best model for final evaluation")
+
+        # Final evaluation on all sigma levels
+        print("\n" + "="*60)
+        print("Final Evaluation (per sigma level)")
+        print("="*60)
+        all_sigma_metrics = evaluate_wdc_per_sigma(model, args.data_dir, patch_size)
+
+        print("\n" + "-"*40)
+        print("Average across all sigma levels:")
+        avg = all_sigma_metrics['average']
+        print(f"  PSNR: {avg['PSNR']:.2f}")
+        print(f"  SSIM: {avg['SSIM']:.4f}")
+        print(f"  SAM: {avg['SAM']:.2f}")
+
+        # Save results
+        os.makedirs(args.output_dir, exist_ok=True)
+
+        result = {
+            'task': 'denoising',
+            'dataset': 'WDC',
+            'model': 'HyperSIGMA',
+            'seed': args.seed,
+            'metrics_per_sigma': all_sigma_metrics,
+            'metrics': all_sigma_metrics['average'],
+            'config': {
+                'dataset': args.dataset,
+                'data_dir': args.data_dir,
+                'spat_weights': args.spat_weights,
+                'spec_weights': args.spec_weights,
+                'epochs': args.epochs,
+                'batch_size': args.batch_size,
+                'lr': args.lr,
+                'patch_size': patch_size,
+                'sigma_range': [args.sigma_min, args.sigma_max],
+                'num_tokens': args.num_tokens,
+                'seed': args.seed,
+            },
+            'timestamp': datetime.now().isoformat(),
+        }
+
+        result_file = os.path.join(args.output_dir, 'result_wdc.json')
+        with open(result_file, 'w') as f:
+            json.dump(result, f, indent=2)
+        print(f"\nResults saved to {result_file}")
+
+        # Save final model
+        model_file = os.path.join(args.output_dir, 'model_wdc.pth')
+        torch.save(model.state_dict(), model_file)
+        print(f"Model saved to {model_file}")
+
+        return
+
+    # Original code for IndianPines/PaviaU
     print("Loading data...")
     if args.dataset.lower() == 'indianpines':
         data_file = os.path.join(args.data_dir, 'Indian_pines_corrected.mat')
@@ -270,7 +517,7 @@ def main():
                     hsi = v
                     break
     else:
-        raise ValueError(f"Unknown dataset: {args.dataset}")
+        raise ValueError(f"Unknown dataset: {args.dataset}. Supported: IndianPines, PaviaU, WDC")
 
     print(f"Data shape: {hsi.shape}")
 
@@ -312,10 +559,15 @@ def main():
     )
     model = model.cuda()
 
-    # Loss and optimizer
+    # Loss and optimizer with Layer Decay (matching original HyperSIGMA implementation)
     criterion = nn.L1Loss().cuda()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs, eta_min=1e-6)
+    optim_wrapper = dict(
+        optimizer=dict(type='AdamW', lr=args.lr, betas=(0.9, 0.999), weight_decay=0.05),
+        constructor='LayerDecayOptimizerConstructor_ViT',
+        paramwise_cfg=dict(num_layers=12, layer_decay_rate=0.9)
+    )
+    optimizer = build_optim_wrapper(model, optim_wrapper)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer.optimizer, args.epochs, eta_min=0)
 
     # Training
     print("\nStarting training...")
@@ -355,7 +607,7 @@ def main():
         'model': 'HyperSIGMA',
         'seed': args.seed,
         'metrics': final_metrics,
-        'best_metrics': best_metrics if 'best_metrics' in dir() else final_metrics,
+        'best_metrics': best_metrics if best_metrics is not None else final_metrics,
         'config': {
             'dataset': args.dataset,
             'data_dir': args.data_dir,

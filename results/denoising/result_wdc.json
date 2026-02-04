@@ -1,0 +1,55 @@
+{
+  "task": "denoising",
+  "dataset": "WDC",
+  "model": "HyperSIGMA",
+  "seed": 42,
+  "metrics_per_sigma": {
+    "sigma_10": {
+      "PSNR": 29.2405,
+      "SSIM": 0.9814,
+      "SAM": 6.1453
+    },
+    "sigma_30": {
+      "PSNR": 27.2801,
+      "SSIM": 0.9652,
+      "SAM": 8.4134
+    },
+    "sigma_50": {
+      "PSNR": 24.8789,
+      "SSIM": 0.9369,
+      "SAM": 10.8926
+    },
+    "sigma_70": {
+      "PSNR": 22.7481,
+      "SSIM": 0.9001,
+      "SAM": 12.9778
+    },
+    "average": {
+      "PSNR": 26.0369,
+      "SSIM": 0.9459,
+      "SAM": 9.6073
+    }
+  },
+  "metrics": {
+    "PSNR": 26.0369,
+    "SSIM": 0.9459,
+    "SAM": 9.6073
+  },
+  "config": {
+    "dataset": "WDC",
+    "data_dir": "../data/benchmark/denoising/WDC",
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
+    "epochs": 50,
+    "batch_size": 8,
+    "lr": 0.0001,
+    "patch_size": 64,
+    "sigma_range": [
+      10,
+      70
+    ],
+    "num_tokens": 100,
+    "seed": 42
+  },
+  "timestamp": "2026-02-04T02:27:45.734627"
+}

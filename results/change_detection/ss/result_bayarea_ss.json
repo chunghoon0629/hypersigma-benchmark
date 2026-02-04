@@ -3,26 +3,26 @@
   "dataset": "BayArea",
   "model": "HyperSIGMA",
   "mode": "ss",
-  "seed": 1111,
+  "seed": 42,
   "metrics": {
-    "OA": 0.9852,
-    "kappa": 0.9703,
-    "F1": 0.9862,
-    "precision": 0.9855,
-    "recall": 0.9868
+    "OA": 0.9889,
+    "kappa": 0.9776,
+    "F1": 0.9896,
+    "precision": 0.9908,
+    "recall": 0.9883
   },
   "config": {
     "dataset": "BayArea",
-    "data_dir": "../data/benchmark/change_detection",
+    "data_dir": "/home/jovyan/gnew-b200-2-datavol-1/chlee/Domain-independent-SpectralFM/hypersigma-benchmark/tasks/change_detection/../../data/change_detection",
     "mode": "ss",
     "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
     "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
-    "epochs": 10,
+    "epochs": 50,
     "batch_size": 32,
     "lr": 6e-05,
     "train_number": 500,
     "patch_size": 15,
-    "seed": 1111
+    "seed": 42
   },
-  "timestamp": "2026-02-03T22:49:48.572091"
+  "timestamp": "2026-02-04T03:50:11.721872"
 }

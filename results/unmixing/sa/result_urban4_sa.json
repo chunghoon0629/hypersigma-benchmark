@@ -4,14 +4,14 @@
   "model": "HyperSIGMA",
   "mode": "sa",
   "num_endmembers": 4,
-  "seed": 2024,
+  "seed": 789,
   "metrics": {
-    "abundance_RMSE": 0.024597,
-    "reconstruction_SAM": 3.8933
+    "abundance_RMSE": 0.024271,
+    "reconstruction_SAM": 3.9087
   },
   "best_metrics": {
-    "abundance_RMSE": 0.024262,
-    "reconstruction_SAM": 3.8992
+    "abundance_RMSE": 0.024271,
+    "reconstruction_SAM": 3.9087
   },
   "config": {
     "dataset": "Urban4",
@@ -25,7 +25,7 @@
     "patch_size": 7,
     "train_ratio": 0.8,
     "num_tokens": null,
-    "seed": 2024
+    "seed": 789
   },
-  "timestamp": "2026-02-04T00:46:30.043798"
+  "timestamp": "2026-02-04T01:04:14.953076"
 }

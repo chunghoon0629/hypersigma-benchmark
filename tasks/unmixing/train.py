@@ -29,6 +29,8 @@ sys.path.insert(0, HYPERSIGMA_ROOT)
 DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'unmixing')
 
 from hypersigma.models.task_heads import UnmixingHead, SSUnmixingHead
+from hypersigma.mmcv_custom import LayerDecayOptimizerConstructor_ViT
+from mmengine.optim import build_optim_wrapper
 
 
 def setup_seed(seed):
@@ -66,6 +68,42 @@ def SAD_loss(pred, target):
     cos_angle = torch.clamp(cos_angle, -1, 1)
     angle = torch.acos(cos_angle)
     return angle.mean()
+
+
+def sparsity_loss(abundance, alpha=0.35):
+    """Sparsity regularization on abundance maps.
+
+    Encourages sparse abundance maps by penalizing the square root of abundances.
+
+    Args:
+        abundance: Abundance tensor [B, num_end, H, W] or [B, num_end]
+        alpha: Sparsity weight (default: 0.35)
+
+    Returns:
+        Sparsity loss scalar
+    """
+    return alpha * torch.sqrt(abundance + 1e-8).mean()
+
+
+def tv_loss(endmember, beta=0.1):
+    """Total Variation loss on endmember spectra.
+
+    Encourages smoothness in the spectral dimension of endmembers.
+
+    Args:
+        endmember: Endmember tensor [num_end, C] or [B, num_end, C]
+        beta: TV weight (default: 0.1)
+
+    Returns:
+        TV loss scalar
+    """
+    # Handle different input shapes
+    if endmember.dim() == 2:
+        # [num_end, C]
+        return beta * torch.abs(endmember[:, 1:] - endmember[:, :-1]).mean()
+    else:
+        # [B, num_end, C]
+        return beta * torch.abs(endmember[:, :, 1:] - endmember[:, :, :-1]).mean()
 
 
 def compute_rmse(pred, target):
@@ -164,11 +202,17 @@ class UnmixingDataset(Data.Dataset):
         return patch, abundance, center_spectrum
 
 
-def train_epoch(model, train_loader, optimizer, recon_weight=0.1):
-    """Train for one epoch."""
+def train_epoch(model, train_loader, optimizer, sparsity_alpha=0.35, tv_beta=0.1):
+    """Train for one epoch.
+
+    Loss = SAD_loss + sparsity_loss + TV_loss
+    Following the original HyperSIGMA unmixing implementation.
+    """
     model.train()
-    abundance_losses = AvgMeter()
-    recon_losses = AvgMeter()
+    sad_losses = AvgMeter()
+    sparse_losses = AvgMeter()
+    tv_losses = AvgMeter()
+    total_losses = AvgMeter()
 
     for patches, abundances_gt, center_spectra in train_loader:
         patches = patches.cuda()
@@ -185,24 +229,42 @@ def train_epoch(model, train_loader, optimizer, recon_weight=0.1):
         center_w = pred_abundances.shape[3] // 2
         pred_center_abund = pred_abundances[:, :, center_h, center_w]  # [B, num_end]
 
-        # Abundance loss (MSE)
-        abundance_loss = F.mse_loss(pred_center_abund, abundances_gt)
+        # Compute losses following original HyperSIGMA formula:
+        # Loss = SAD_loss + α × √(Abundance).mean() + β × TV(Endmember)
 
-        # Reconstruction loss (SAD) - compare center pixel
+        # 1. SAD loss for reconstruction
         if reconstructed is not None:
             center_recon = reconstructed[:, :, center_h, center_w]  # [B, C]
-            recon_loss = SAD_loss(center_recon, center_spectra)
-            loss = abundance_loss + recon_weight * recon_loss
-            recon_losses.update(recon_loss.item(), patches.size(0))
+            sad_loss_val = SAD_loss(center_recon, center_spectra)
         else:
-            loss = abundance_loss
+            # If no reconstruction, use MSE on abundance as fallback
+            sad_loss_val = F.mse_loss(pred_center_abund, abundances_gt)
+
+        # 2. Sparsity loss on abundances
+        sparse_loss_val = sparsity_loss(pred_center_abund, alpha=sparsity_alpha)
+
+        # 3. TV loss on endmembers (if model has endmember weights)
+        tv_loss_val = torch.tensor(0.0, device=patches.device)
+        if hasattr(model, 'endmember') and model.endmember is not None:
+            tv_loss_val = tv_loss(model.endmember, beta=tv_beta)
+        elif hasattr(model, 'decoder') and hasattr(model.decoder, 'weight'):
+            # Decoder weight can be interpreted as endmember matrix
+            tv_loss_val = tv_loss(model.decoder.weight, beta=tv_beta)
+
+        # Total loss
+        loss = sad_loss_val + sparse_loss_val + tv_loss_val
 
         loss.backward()
         optimizer.step()
 
-        abundance_losses.update(abundance_loss.item(), patches.size(0))
+        # Update meters
+        n = patches.size(0)
+        sad_losses.update(sad_loss_val.item(), n)
+        sparse_losses.update(sparse_loss_val.item(), n)
+        tv_losses.update(tv_loss_val.item(), n)
+        total_losses.update(loss.item(), n)
 
-    return abundance_losses.avg, recon_losses.avg
+    return total_losses.avg, sad_losses.avg, sparse_losses.avg, tv_losses.avg
 
 
 def evaluate(model, test_loader):
@@ -265,12 +327,19 @@ def main():
                         default='pretrained/spat-vit-base-ultra-checkpoint-1599.pth')
     parser.add_argument('--spec_weights', type=str,
                         default='pretrained/spec-vit-base-ultra-checkpoint-1599.pth')
-    parser.add_argument('--epochs', type=int, default=50)
-    parser.add_argument('--batch_size', type=int, default=64)
-    parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--patch_size', type=int, default=7)
+    parser.add_argument('--epochs', type=int, default=200)
+    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--weight_decay', type=float, default=0.05)
+    parser.add_argument('--patch_size', type=int, default=64)
+    parser.add_argument('--spat_patch_size', type=int, default=2,
+                        help='Spatial ViT patch size')
     parser.add_argument('--train_ratio', type=float, default=0.8)
-    parser.add_argument('--num_tokens', type=int, default=100)
+    parser.add_argument('--num_tokens', type=int, default=64)
+    parser.add_argument('--sparsity_alpha', type=float, default=0.35,
+                        help='Sparsity loss weight')
+    parser.add_argument('--tv_beta', type=float, default=0.1,
+                        help='Total Variation loss weight')
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--output_dir', type=str, default='results/unmixing')
     args = parser.parse_args()
@@ -367,23 +436,34 @@ def main():
 
     model = model.cuda()
 
-    # Optimizer
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs, eta_min=1e-6)
+    # Optimizer with Layer Decay (matching original HyperSIGMA implementation)
+    optim_wrapper = dict(
+        optimizer=dict(type='AdamW', lr=args.lr, betas=(0.9, 0.999), weight_decay=args.weight_decay),
+        constructor='LayerDecayOptimizerConstructor_ViT',
+        paramwise_cfg=dict(num_layers=12, layer_decay_rate=0.9)
+    )
+    optimizer = build_optim_wrapper(model, optim_wrapper)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer.optimizer, args.epochs, eta_min=0)
 
     # Training
     print("\nStarting training...")
+    print(f"Using loss: SAD + sparsity(α={args.sparsity_alpha}) + TV(β={args.tv_beta})")
     t0 = time.time()
     best_rmse = float('inf')
     best_metrics = None
 
     for epoch in range(args.epochs):
-        abundance_loss, recon_loss = train_epoch(model, train_loader, optimizer)
+        total_loss, sad_loss, sparse_loss, tv_loss_val = train_epoch(
+            model, train_loader, optimizer,
+            sparsity_alpha=args.sparsity_alpha,
+            tv_beta=args.tv_beta
+        )
         scheduler.step()
 
-        if (epoch + 1) % 5 == 0:
+        if (epoch + 1) % 10 == 0:
             metrics = evaluate(model, test_loader)
-            print(f"Epoch {epoch+1}/{args.epochs}: abundance_loss={abundance_loss:.6f}, "
+            print(f"Epoch {epoch+1}/{args.epochs}: loss={total_loss:.6f} "
+                  f"(SAD={sad_loss:.4f}, sparse={sparse_loss:.4f}, TV={tv_loss_val:.4f}), "
                   f"RMSE={metrics['abundance_RMSE']:.6f}, SAM={metrics['reconstruction_SAM']:.2f}")
 
             if metrics['abundance_RMSE'] < best_rmse:
@@ -423,9 +503,13 @@ def main():
             'epochs': args.epochs,
             'batch_size': args.batch_size,
             'lr': args.lr,
+            'weight_decay': args.weight_decay,
             'patch_size': args.patch_size,
+            'spat_patch_size': args.spat_patch_size,
             'train_ratio': args.train_ratio,
             'num_tokens': args.num_tokens if args.mode == 'ss' else None,
+            'sparsity_alpha': args.sparsity_alpha,
+            'tv_beta': args.tv_beta,
             'seed': args.seed,
         },
         'timestamp': datetime.now().isoformat(),
