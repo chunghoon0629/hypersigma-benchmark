@@ -8,8 +8,6 @@ Supports: Hermiston, BayArea, Barbara, Farmland datasets.
 import os
 import sys
 import argparse
-import json
-import pickle
 import time
 import random
 from datetime import datetime
@@ -24,7 +22,11 @@ from sklearn.metrics import confusion_matrix
 # Add parent directories to path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HYPERSIGMA_ROOT = os.path.join(SCRIPT_DIR, '..', '..')
+PROJECT_ROOT = os.path.join(HYPERSIGMA_ROOT, '..')
 sys.path.insert(0, HYPERSIGMA_ROOT)
+sys.path.insert(0, PROJECT_ROOT)
+
+from downstream_task_head.utils.result_manager import ResultManager, ChangeDetectionMetrics
 
 # Default data directory (relative to hypersigma-benchmark root)
 DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'change_detection')
@@ -397,44 +399,39 @@ def main():
     for k, v in metrics.items():
         print(f"  {k}: {v}")
 
-    # Save results
-    os.makedirs(args.output_dir, exist_ok=True)
-    save_dir = os.path.join(args.output_dir, args.mode)
-    os.makedirs(save_dir, exist_ok=True)
-
-    result = {
-        'task': 'change_detection',
+    # Save results using ResultManager
+    checkpoint_name = f"hypersigma_{args.mode}"
+    manager = ResultManager(
+        task="change_detection",
+        dataset=args.dataset,
+        checkpoint_path=args.spat_weights,
+        experiment_name="hypersigma_benchmark"
+    )
+    manager.set_config(experiment_config={
         'dataset': args.dataset,
-        'model': 'HyperSIGMA' if args.mode == 'ss' else 'SpatSIGMA',
+        'data_dir': args.data_dir,
         'mode': args.mode,
-        'seed': args.seed,
-        'metrics': metrics,
-        'config': {
-            'dataset': args.dataset,
-            'data_dir': args.data_dir,
-            'mode': args.mode,
-            'spat_weights': args.spat_weights,
-            'spec_weights': args.spec_weights if args.mode == 'ss' else None,
-            'epochs': args.epochs,
-            'batch_size': args.batch_size,
-            'lr': args.lr,
-            'train_number': args.train_number,
-            'patch_size': patch_size,
-            'seed': args.seed,
-        },
-        'timestamp': datetime.now().isoformat(),
-    }
+        'spat_weights': args.spat_weights,
+        'spec_weights': args.spec_weights if args.mode == 'ss' else None,
+        'epochs': args.epochs,
+        'batch_size': args.batch_size,
+        'lr': args.lr,
+        'train_number': args.train_number,
+        'patch_size': patch_size,
+        'model': 'HyperSIGMA' if args.mode == 'ss' else 'SpatSIGMA',
+    })
 
-    result_file = os.path.join(save_dir, f'result_{args.dataset.lower()}_{args.mode}.json')
-    with open(result_file, 'w') as f:
-        json.dump(result, f, indent=2)
-    print(f"\nResults saved to {result_file}")
-
-    # Save model
-    model_file = os.path.join(save_dir, f'model_{args.dataset.lower()}_{args.mode}.pkl')
-    with open(model_file, 'wb') as f:
-        pickle.dump(model, f)
-    print(f"Model saved to {model_file}")
+    manager.log_run(
+        seed=args.seed,
+        metrics=ChangeDetectionMetrics(
+            overall_accuracy=metrics['OA'],
+            kappa=metrics['kappa'],
+            F1=metrics['F1'],
+            precision=metrics['precision'],
+            recall=metrics['recall'],
+        )
+    )
+    manager.try_auto_aggregate()
 
 
 if __name__ == '__main__':

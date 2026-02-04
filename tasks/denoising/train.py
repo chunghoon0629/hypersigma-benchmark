@@ -8,7 +8,6 @@ Uses Gaussian noise for simplicity (can be extended to complex noise).
 import os
 import sys
 import argparse
-import json
 import time
 import random
 from datetime import datetime
@@ -23,7 +22,11 @@ import torch.utils.data as Data
 # Add parent directories to path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HYPERSIGMA_ROOT = os.path.join(SCRIPT_DIR, '..', '..')
+PROJECT_ROOT = os.path.join(HYPERSIGMA_ROOT, '..')
 sys.path.insert(0, HYPERSIGMA_ROOT)
+sys.path.insert(0, PROJECT_ROOT)
+
+from downstream_task_head.utils.result_manager import ResultManager, DenoisingMetrics
 
 # Default data directory (uses classification data for denoising)
 DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'classification')
@@ -346,41 +349,36 @@ def main():
     for k, v in final_metrics.items():
         print(f"  {k}: {v}")
 
-    # Save results
-    os.makedirs(args.output_dir, exist_ok=True)
-
-    result = {
-        'task': 'denoising',
+    # Save results using ResultManager
+    manager = ResultManager(
+        task="denoising",
+        dataset=args.dataset,
+        checkpoint_path=args.spat_weights,
+        experiment_name="hypersigma_benchmark"
+    )
+    manager.set_config(experiment_config={
         'dataset': args.dataset,
+        'data_dir': args.data_dir,
+        'spat_weights': args.spat_weights,
+        'spec_weights': args.spec_weights,
+        'epochs': args.epochs,
+        'batch_size': args.batch_size,
+        'lr': args.lr,
+        'patch_size': patch_size,
+        'sigma_range': [args.sigma_min, args.sigma_max],
+        'num_tokens': args.num_tokens,
         'model': 'HyperSIGMA',
-        'seed': args.seed,
-        'metrics': final_metrics,
-        'best_metrics': best_metrics if 'best_metrics' in dir() else final_metrics,
-        'config': {
-            'dataset': args.dataset,
-            'data_dir': args.data_dir,
-            'spat_weights': args.spat_weights,
-            'spec_weights': args.spec_weights,
-            'epochs': args.epochs,
-            'batch_size': args.batch_size,
-            'lr': args.lr,
-            'patch_size': patch_size,
-            'sigma_range': [args.sigma_min, args.sigma_max],
-            'num_tokens': args.num_tokens,
-            'seed': args.seed,
-        },
-        'timestamp': datetime.now().isoformat(),
-    }
+    })
 
-    result_file = os.path.join(args.output_dir, f'result_{args.dataset.lower()}.json')
-    with open(result_file, 'w') as f:
-        json.dump(result, f, indent=2)
-    print(f"\nResults saved to {result_file}")
-
-    # Save model
-    model_file = os.path.join(args.output_dir, f'model_{args.dataset.lower()}.pth')
-    torch.save(model.state_dict(), model_file)
-    print(f"Model saved to {model_file}")
+    manager.log_run(
+        seed=args.seed,
+        metrics=DenoisingMetrics(
+            PSNR=final_metrics['PSNR'],
+            SSIM=final_metrics['SSIM'],
+            SAM=final_metrics['SAM'],
+        )
+    )
+    manager.try_auto_aggregate()
 
 
 if __name__ == '__main__':

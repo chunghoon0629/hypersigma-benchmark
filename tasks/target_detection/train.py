@@ -8,7 +8,6 @@ Target detection aims to find pixels matching a known target spectrum.
 import os
 import sys
 import argparse
-import json
 import time
 import random
 from datetime import datetime
@@ -23,7 +22,11 @@ from sklearn.metrics import roc_auc_score, f1_score, precision_recall_curve, auc
 # Add parent directories to path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HYPERSIGMA_ROOT = os.path.join(SCRIPT_DIR, '..', '..')
+PROJECT_ROOT = os.path.join(HYPERSIGMA_ROOT, '..')
 sys.path.insert(0, HYPERSIGMA_ROOT)
+sys.path.insert(0, PROJECT_ROOT)
+
+from downstream_task_head.utils.result_manager import ResultManager, TargetDetectionMetrics
 
 # Default data directory (relative to hypersigma-benchmark root)
 DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'target_detection')
@@ -386,39 +389,42 @@ def main():
     for k, v in final_metrics.items():
         print(f"  {k}: {v}")
 
-    # Save results
-    mode_dir = os.path.join(args.output_dir, args.mode)
-    os.makedirs(mode_dir, exist_ok=True)
-
-    result = {
-        'task': 'target_detection',
+    # Save results using ResultManager
+    manager = ResultManager(
+        task="target_detection",
+        dataset=args.dataset,
+        checkpoint_path=args.spat_weights,
+        experiment_name="hypersigma_benchmark"
+    )
+    manager.set_config(experiment_config={
         'dataset': args.dataset,
-        'model': 'HyperSIGMA',
+        'data_dir': args.data_dir,
         'mode': args.mode,
-        'seed': args.seed,
-        'metrics': final_metrics,
-        'best_metrics': best_metrics if best_metrics else final_metrics,
-        'config': {
-            'dataset': args.dataset,
-            'data_dir': args.data_dir,
-            'mode': args.mode,
-            'spat_weights': args.spat_weights,
-            'spec_weights': args.spec_weights if args.mode == 'ss' else None,
-            'epochs': args.epochs,
-            'batch_size': args.batch_size,
-            'lr': args.lr,
-            'patch_size': args.patch_size,
-            'train_ratio': args.train_ratio,
-            'num_tokens': args.num_tokens if args.mode == 'ss' else None,
-            'seed': args.seed,
-        },
-        'timestamp': datetime.now().isoformat(),
-    }
+        'spat_weights': args.spat_weights,
+        'spec_weights': args.spec_weights if args.mode == 'ss' else None,
+        'epochs': args.epochs,
+        'batch_size': args.batch_size,
+        'lr': args.lr,
+        'patch_size': args.patch_size,
+        'train_ratio': args.train_ratio,
+        'num_tokens': args.num_tokens if args.mode == 'ss' else None,
+        'model': 'HyperSIGMA',
+    })
 
-    result_file = os.path.join(mode_dir, f'result_{args.dataset.lower()}_{args.mode}.json')
-    with open(result_file, 'w') as f:
-        json.dump(result, f, indent=2)
-    print(f"\nResults saved to {result_file}")
+    # Use best metrics if available, otherwise final metrics
+    metrics_to_save = best_metrics if best_metrics else final_metrics
+
+    manager.log_run(
+        seed=args.seed,
+        metrics=TargetDetectionMetrics(
+            AUC_ROC=metrics_to_save['AUC_ROC'],
+            F1=metrics_to_save['F1'],
+            precision=metrics_to_save.get('precision', 0.0),
+            recall=metrics_to_save.get('recall', 0.0),
+            average_precision=metrics_to_save.get('AUC_PR'),
+        )
+    )
+    manager.try_auto_aggregate()
 
 
 if __name__ == '__main__':

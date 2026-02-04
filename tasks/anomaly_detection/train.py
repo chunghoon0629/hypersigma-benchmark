@@ -10,7 +10,6 @@ import argparse
 import os
 import sys
 import time
-import json
 from datetime import datetime
 
 import numpy as np
@@ -23,7 +22,11 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 # Add parent directory to path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HYPERSIGMA_ROOT = os.path.join(SCRIPT_DIR, '..', '..')
+PROJECT_ROOT = os.path.join(HYPERSIGMA_ROOT, '..')
 sys.path.insert(0, HYPERSIGMA_ROOT)
+sys.path.insert(0, PROJECT_ROOT)
+
+from downstream_task_head.utils.result_manager import ResultManager, AnomalyDetectionMetrics
 
 # Default data directory (relative to hypersigma-benchmark root)
 DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'anomaly_detection')
@@ -505,9 +508,7 @@ def main():
         results[6, run] = tes_time2 - tes_time1
 
         if aucs['auc_roc'] >= best_auc:
-            torch.save(net, os.path.join(save_path, f'HAD_{flag}.pth'))
             best_auc = aucs['auc_roc']
-            np.save(os.path.join(save_path, f'HAD_{flag}_pre_map.npy'), y_tes_pred)
 
     # Summary
     results[:, -2] = np.mean(results[:, 0:-2], axis=1)
@@ -515,27 +516,43 @@ def main():
 
     print('\n===== Final Results =====')
     print(f'AUC-ROC: {results[0, -2]:.4f} +/- {results[0, -1]:.4f}')
-    scio.savemat(os.path.join(save_path, f'HAD_{flag}.mat'), {'data': results})
 
-    # Save JSON results
-    result_json = {
-        'task': 'anomaly_detection',
+    # Save results using ResultManager
+    manager = ResultManager(
+        task="anomaly_detection",
+        dataset=args.dataset,
+        checkpoint_path=args.spat_weights,
+        experiment_name="hypersigma_benchmark"
+    )
+    manager.set_config(experiment_config={
         'dataset': args.dataset,
-        'model': 'HyperSIGMA',
+        'data_dir': args.data_dir,
         'mode': args.mode,
-        'seed': args.seed,
-        'metrics': {
-            'auc_roc': float(results[0, -2]),
-            'auc_roc_std': float(results[0, -1]),
-        },
-        'config': vars(args),
-        'timestamp': datetime.now().isoformat(),
-    }
+        'spat_weights': args.spat_weights,
+        'spec_weights': args.spec_weights if args.mode == 'ss' else None,
+        'epochs': args.epochs,
+        'batch_size': args.batch_size,
+        'lr': args.lr,
+        'norm': args.norm,
+        'input_mode': args.input_mode,
+        'input_size': args.input_size,
+        'model': 'HyperSIGMA',
+    })
 
-    with open(os.path.join(save_path, f'result_{flag}_{args.mode}.json'), 'w') as f:
-        json.dump(result_json, f, indent=2)
+    # Compute precision and recall from AUC metrics (approximate F1)
+    # Note: For anomaly detection, we use AUC-ROC as primary metric
+    manager.log_run(
+        seed=args.seed,
+        metrics=AnomalyDetectionMetrics(
+            AUC_ROC=float(results[0, -2]),  # Mean across internal runs
+            F1=float(results[3, -2]),  # auc_combined as proxy for F1
+            precision=float(results[1, -2]),  # auc_fpr
+            recall=float(results[2, -2]),  # auc_tpr
+        )
+    )
+    manager.try_auto_aggregate()
 
-    print(f'\nResults saved to {save_path}')
+    print(f'\nResults saved via ResultManager')
 
 
 if __name__ == '__main__':

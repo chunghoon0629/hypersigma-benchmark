@@ -9,7 +9,6 @@ Usage:
 import argparse
 import os
 import sys
-import json
 from datetime import datetime
 
 import numpy as np
@@ -22,7 +21,11 @@ from sklearn.decomposition import PCA
 # Add parent directory to path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HYPERSIGMA_ROOT = os.path.join(SCRIPT_DIR, '..', '..')
+PROJECT_ROOT = os.path.join(HYPERSIGMA_ROOT, '..')
 sys.path.insert(0, HYPERSIGMA_ROOT)
+sys.path.insert(0, PROJECT_ROOT)
+
+from downstream_task_head.utils.result_manager import ResultManager, ClassificationMetrics
 
 # Default data directory (relative to hypersigma-benchmark root)
 DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'classification')
@@ -374,41 +377,51 @@ def main():
     print(f"AA: {np.mean(aa_list)*100:.2f}% +/- {np.std(aa_list)*100:.2f}%")
     print(f"Kappa: {np.mean(kappa_list):.4f} +/- {np.std(kappa_list):.4f}")
 
-    # Save results
-    result_json = {
-        'task': 'classification',
+    # Save results using ResultManager
+    manager = ResultManager(
+        task="classification",
+        dataset=args.dataset,
+        checkpoint_path=args.spat_weights,
+        experiment_name="hypersigma_benchmark"
+    )
+    manager.set_config(experiment_config={
         'dataset': args.dataset,
-        'model': 'HyperSIGMA',
+        'data_dir': args.data_dir,
         'model_size': args.model_size,
         'samples_per_class': args.samples_per_class,
-        'num_runs': args.num_runs,
-        'metrics': {
-            'overall_accuracy': {
-                'mean': float(np.mean(oa_list)),
-                'std': float(np.std(oa_list)),
-            },
-            'average_accuracy': {
-                'mean': float(np.mean(aa_list)),
-                'std': float(np.std(aa_list)),
-            },
-            'kappa': {
-                'mean': float(np.mean(kappa_list)),
-                'std': float(np.std(kappa_list)),
-            },
-        },
-        'per_run_results': all_results,
-        'config': vars(args),
-        'timestamp': datetime.now().isoformat(),
-    }
+        'val_samples': args.val_samples,
+        'epochs': args.epochs,
+        'batch_size': args.batch_size,
+        'lr': args.lr,
+        'wd': args.wd,
+        'img_size': args.img_size,
+        'patch_size': args.patch_size,
+        'pca_components': args.pca_components,
+        'spat_weights': args.spat_weights,
+        'spec_weights': args.spec_weights,
+        'model': 'HyperSIGMA',
+    })
 
-    output_file = os.path.join(
-        args.output_dir,
-        f'result_{args.dataset}_{args.samples_per_class}shot.json'
+    # Log mean metrics with seed indicating it's the final aggregated result
+    manager.log_run(
+        seed=args.seed,
+        metrics=ClassificationMetrics(
+            overall_accuracy=float(np.mean(oa_list)),
+            kappa=float(np.mean(kappa_list)),
+            average_accuracy=float(np.mean(aa_list)),
+            F1_macro=float(np.mean([r.get('f1_macro', 0) for r in all_results])) if 'f1_macro' in all_results[0] else 0.0,
+        ),
+        extra={
+            'num_runs': args.num_runs,
+            'oa_std': float(np.std(oa_list)),
+            'aa_std': float(np.std(aa_list)),
+            'kappa_std': float(np.std(kappa_list)),
+            'per_run_results': all_results,
+        }
     )
-    with open(output_file, 'w') as f:
-        json.dump(result_json, f, indent=2)
+    manager.try_auto_aggregate()
 
-    print(f"\nResults saved to {output_file}")
+    print(f"\nResults saved via ResultManager")
 
 
 if __name__ == '__main__':
