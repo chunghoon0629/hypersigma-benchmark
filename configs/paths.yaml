@@ -1,0 +1,43 @@
+# HyperSIGMA Benchmark - Path Configuration
+# Centralized path management for all tasks
+
+# Pretrained weights
+pretrained:
+  spat_vit: "pretrained/spat-vit-base-ultra-checkpoint-1599.pth"
+  spec_vit: "pretrained/spec-vit-base-ultra-checkpoint-1599.pth"
+
+# Dataset paths
+datasets:
+  anomaly_detection:
+    pavia:
+      data: "data/anomaly_detection/Pavia_150_150_102.mat"
+      coarse_det: "data/anomaly_detection/Pavia_coarse_det_map.mat"
+    cri:
+      data: "data/anomaly_detection/Nuance_Cri_400_400_46_1254.mat"
+      coarse_det: "data/anomaly_detection/Cri_coarse_det_map.mat"
+
+  classification:
+    indian_pines:
+      data: "data/classification/Indian_pines_corrected.mat"
+      gt: "data/classification/Indian_pines_gt.mat"
+    pavia_university:
+      data: "data/classification/PaviaU.mat"
+      gt: "data/classification/PaviaU_gt.mat"
+    houston:
+      data: "data/classification/Houston.mat"
+      gt: "data/classification/Houston_gt.mat"
+
+  change_detection:
+    bay_area:
+      t1: "data/change_detection/Bay_Area_t1.mat"
+      t2: "data/change_detection/Bay_Area_t2.mat"
+      gt: "data/change_detection/Bay_Area_gt.mat"
+
+  denoising:
+    wdc:
+      data: "data/denoising/WDC.mat"
+
+# Output paths
+output:
+  results: "results"
+  checkpoints: "checkpoints"

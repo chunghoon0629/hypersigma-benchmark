@@ -1,0 +1,36 @@
+{
+  "task": "target_detection",
+  "dataset": "SanDiego",
+  "model": "HyperSIGMA",
+  "mode": "sa",
+  "seed": 7777,
+  "metrics": {
+    "loss": 0.019979,
+    "AUC_ROC": 0.9992,
+    "AUC_PR": 0.8886,
+    "F1": 0.8475,
+    "threshold": 0.9883
+  },
+  "best_metrics": {
+    "loss": 0.035653,
+    "AUC_ROC": 0.9992,
+    "AUC_PR": 0.8887,
+    "F1": 0.8475,
+    "threshold": 0.9944
+  },
+  "config": {
+    "dataset": "SanDiego",
+    "data_dir": "../data/benchmark/target_detection/SanDiego",
+    "mode": "sa",
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": null,
+    "epochs": 50,
+    "batch_size": 32,
+    "lr": 0.0001,
+    "patch_size": 7,
+    "train_ratio": 0.5,
+    "num_tokens": null,
+    "seed": 7777
+  },
+  "timestamp": "2026-02-03T21:01:37.169721"
+}

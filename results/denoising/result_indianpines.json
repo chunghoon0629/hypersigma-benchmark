@@ -1,0 +1,33 @@
+{
+  "task": "denoising",
+  "dataset": "IndianPines",
+  "model": "HyperSIGMA",
+  "seed": 2024,
+  "metrics": {
+    "PSNR": 23.3438,
+    "SSIM": 0.6718,
+    "SAM": 14.9323
+  },
+  "best_metrics": {
+    "PSNR": 23.5234,
+    "SSIM": 0.6915,
+    "SAM": 14.5939
+  },
+  "config": {
+    "dataset": "IndianPines",
+    "data_dir": "../data/benchmark/classification/IndianPines",
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
+    "epochs": 50,
+    "batch_size": 8,
+    "lr": 0.0001,
+    "patch_size": 30,
+    "sigma_range": [
+      10,
+      70
+    ],
+    "num_tokens": 100,
+    "seed": 2024
+  },
+  "timestamp": "2026-02-03T19:27:09.689986"
+}

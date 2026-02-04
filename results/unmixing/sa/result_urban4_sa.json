@@ -1,0 +1,31 @@
+{
+  "task": "unmixing",
+  "dataset": "Urban4",
+  "model": "HyperSIGMA",
+  "mode": "sa",
+  "num_endmembers": 4,
+  "seed": 2024,
+  "metrics": {
+    "abundance_RMSE": 0.024597,
+    "reconstruction_SAM": 3.8933
+  },
+  "best_metrics": {
+    "abundance_RMSE": 0.024262,
+    "reconstruction_SAM": 3.8992
+  },
+  "config": {
+    "dataset": "Urban4",
+    "data_dir": "../data/benchmark/unmixing/Urban",
+    "mode": "sa",
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": null,
+    "epochs": 50,
+    "batch_size": 64,
+    "lr": 0.0001,
+    "patch_size": 7,
+    "train_ratio": 0.8,
+    "num_tokens": null,
+    "seed": 2024
+  },
+  "timestamp": "2026-02-04T00:46:30.043798"
+}

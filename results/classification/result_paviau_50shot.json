@@ -1,0 +1,205 @@
+{
+  "task": "classification",
+  "dataset": "paviau",
+  "model": "HyperSIGMA",
+  "model_size": "base",
+  "samples_per_class": 50,
+  "num_runs": 10,
+  "metrics": {
+    "overall_accuracy": {
+      "mean": 0.96817,
+      "std": 0.010328412269076015
+    },
+    "average_accuracy": {
+      "mean": 0.9735900000000001,
+      "std": 0.007402492823367005
+    },
+    "kappa": {
+      "mean": 0.95565,
+      "std": 0.014204101520335601
+    }
+  },
+  "per_run_results": [
+    {
+      "overall_accuracy": 0.9743,
+      "average_accuracy": 0.9723,
+      "kappa": 0.9639,
+      "f1_weighted": 0.9744,
+      "f1_macro": 0.9609,
+      "per_class_accuracy": [
+        0.9172482552342971,
+        0.9516423357664233,
+        0.9704990350151641,
+        0.9992156862745099,
+        0.9887892376681614,
+        0.9844573518339249,
+        0.9943707277844793
+      ]
+    },
+    {
+      "overall_accuracy": 0.9719,
+      "average_accuracy": 0.9759,
+      "kappa": 0.9608,
+      "f1_weighted": 0.9721,
+      "f1_macro": 0.9661,
+      "per_class_accuracy": [
+        0.940844134263875,
+        0.9686739659367397,
+        0.9842845326716294,
+        1.0,
+        0.984304932735426,
+        0.9701516618263956,
+        0.9833132287897065
+      ]
+    },
+    {
+      "overall_accuracy": 0.9637,
+      "average_accuracy": 0.9726,
+      "kappa": 0.9494,
+      "f1_weighted": 0.9639,
+      "f1_macro": 0.9567,
+      "per_class_accuracy": [
+        0.9361914257228315,
+        0.961830900243309,
+        0.9702233250620348,
+        0.9976470588235294,
+        0.9899103139013453,
+        0.9547703560288265,
+        0.9977885002010455
+      ]
+    },
+    {
+      "overall_accuracy": 0.9842,
+      "average_accuracy": 0.9879,
+      "kappa": 0.978,
+      "f1_weighted": 0.9845,
+      "f1_macro": 0.9802,
+      "per_class_accuracy": [
+        0.9641076769690927,
+        0.9974148418491484,
+        0.9988971601874828,
+        1.0,
+        0.9798206278026906,
+        0.9748843713025708,
+        1.0
+      ]
+    },
+    {
+      "overall_accuracy": 0.9706,
+      "average_accuracy": 0.9769,
+      "kappa": 0.9589,
+      "f1_weighted": 0.9708,
+      "f1_macro": 0.9667,
+      "per_class_accuracy": [
+        0.9641076769690927,
+        0.9686739659367397,
+        0.9947615108905431,
+        0.9976470588235294,
+        0.976457399103139,
+        0.9651500484027106,
+        0.9716525934861279
+      ]
+    },
+    {
+      "overall_accuracy": 0.9426,
+      "average_accuracy": 0.9607,
+      "kappa": 0.9207,
+      "f1_weighted": 0.9451,
+      "f1_macro": 0.9268,
+      "per_class_accuracy": [
+        0.9215686274509803,
+        0.9213807785888077,
+        0.9961400606561897,
+        0.9984313725490196,
+        0.9887892376681614,
+        0.9301387544369152,
+        0.9682348210695617
+      ]
+    },
+    {
+      "overall_accuracy": 0.9702,
+      "average_accuracy": 0.9717,
+      "kappa": 0.9584,
+      "f1_weighted": 0.9704,
+      "f1_macro": 0.9602,
+      "per_class_accuracy": [
+        0.9252243270189432,
+        0.9592457420924574,
+        0.9812517231872071,
+        1.0,
+        0.968609865470852,
+        0.9698827578788857,
+        0.9977885002010455
+      ]
+    },
+    {
+      "overall_accuracy": 0.9619,
+      "average_accuracy": 0.9629,
+      "kappa": 0.9468,
+      "f1_weighted": 0.9626,
+      "f1_macro": 0.9391,
+      "per_class_accuracy": [
+        0.9205716184778996,
+        0.9154501216545012,
+        0.9864902122966639,
+        0.9968627450980392,
+        0.9719730941704036,
+        0.9739163170915349,
+        0.9748693204664254
+      ]
+    },
+    {
+      "overall_accuracy": 0.9682,
+      "average_accuracy": 0.9797,
+      "kappa": 0.9558,
+      "f1_weighted": 0.969,
+      "f1_macro": 0.9625,
+      "per_class_accuracy": [
+        0.9581256231306082,
+        0.9867700729927007,
+        0.9900744416873449,
+        0.9921568627450981,
+        0.9854260089686099,
+        0.9488006883941056,
+        0.9967832730197025
+      ]
+    },
+    {
+      "overall_accuracy": 0.9741,
+      "average_accuracy": 0.9753,
+      "kappa": 0.9638,
+      "f1_weighted": 0.9743,
+      "f1_macro": 0.9598,
+      "per_class_accuracy": [
+        0.9325357261548687,
+        0.9527068126520681,
+        0.9762889440308795,
+        1.0,
+        0.9910313901345291,
+        0.9799397655157578,
+        0.9947728186570165
+      ]
+    }
+  ],
+  "config": {
+    "dataset": "paviau",
+    "data_dir": "../data/benchmark/classification/PaviaU",
+    "gpus": "0",
+    "model_size": "base",
+    "patch_size": 2,
+    "img_size": 33,
+    "pca_components": 30,
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
+    "epochs": 200,
+    "batch_size": 64,
+    "lr": 0.0001,
+    "wd": 0.05,
+    "samples_per_class": 50,
+    "val_samples": 5,
+    "num_runs": 10,
+    "seed": 42,
+    "output_dir": "results/classification"
+  },
+  "timestamp": "2026-02-03T18:53:00.573598"
+}

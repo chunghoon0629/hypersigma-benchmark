@@ -1,0 +1,28 @@
+{
+  "task": "change_detection",
+  "dataset": "BayArea",
+  "model": "HyperSIGMA",
+  "mode": "ss",
+  "seed": 1111,
+  "metrics": {
+    "OA": 0.9852,
+    "kappa": 0.9703,
+    "F1": 0.9862,
+    "precision": 0.9855,
+    "recall": 0.9868
+  },
+  "config": {
+    "dataset": "BayArea",
+    "data_dir": "../data/benchmark/change_detection",
+    "mode": "ss",
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
+    "epochs": 10,
+    "batch_size": 32,
+    "lr": 6e-05,
+    "train_number": 500,
+    "patch_size": 15,
+    "seed": 1111
+  },
+  "timestamp": "2026-02-03T22:49:48.572091"
+}

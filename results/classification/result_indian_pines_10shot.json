@@ -1,0 +1,69 @@
+{
+  "task": "classification",
+  "dataset": "indian_pines",
+  "model": "HyperSIGMA",
+  "model_size": "base",
+  "samples_per_class": 10,
+  "num_runs": 1,
+  "metrics": {
+    "overall_accuracy": {
+      "mean": 0.4395,
+      "std": 0.0
+    },
+    "average_accuracy": {
+      "mean": 0.6103,
+      "std": 0.0
+    },
+    "kappa": {
+      "mean": 0.386,
+      "std": 0.0
+    }
+  },
+  "per_run_results": [
+    {
+      "overall_accuracy": 0.4395,
+      "average_accuracy": 0.6103,
+      "kappa": 0.386,
+      "f1_weighted": 0.4596,
+      "f1_macro": 0.3873,
+      "per_class_accuracy": [
+        0.9032258064516129,
+        0.24911535739561216,
+        0.4441717791411043,
+        0.7162162162162162,
+        0.4722222222222222,
+        0.43636363636363634,
+        1.0,
+        0.937365010799136,
+        0.8888888888888888,
+        0.290491118077325,
+        0.3237704918032787,
+        0.30103806228373703,
+        0.7684210526315789,
+        0.7144,
+        0.4339622641509434,
+        0.8846153846153846
+      ]
+    }
+  ],
+  "config": {
+    "dataset": "indian_pines",
+    "data_dir": "data/classification",
+    "model_size": "base",
+    "patch_size": 2,
+    "img_size": 33,
+    "pca_components": 30,
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
+    "epochs": 100,
+    "batch_size": 64,
+    "lr": 6e-05,
+    "wd": 0.05,
+    "samples_per_class": 10,
+    "val_samples": 5,
+    "num_runs": 1,
+    "seed": 42,
+    "output_dir": "results/classification"
+  },
+  "timestamp": "2026-02-03T03:20:54.397958"
+}
