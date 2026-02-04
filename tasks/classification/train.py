@@ -3,7 +3,13 @@
 Classification Training Script for HyperSIGMA Benchmark.
 
 Usage:
-    python train.py --dataset indian_pines --samples_per_class 10 --epochs 100
+    python train.py --dataset indian_pines --samples_per_class 50 --epochs 100
+
+    # With full-map segmentation evaluation
+    python train.py --dataset indian_pines --samples_per_class 50 --eval_segmentation --num_runs 3
+
+    # Save predicted classification maps
+    python train.py --dataset indian_pines --eval_segmentation --save_maps
 """
 
 import argparse
@@ -28,7 +34,7 @@ sys.path.insert(0, HYPERSIGMA_ROOT)
 DEFAULT_DATA_DIR = os.path.join(HYPERSIGMA_ROOT, 'data', 'classification')
 
 from hypersigma.models.task_heads import SSClassificationHead, ClassificationHead
-from hypersigma.utils.metrics import compute_classification_metrics
+from hypersigma.utils.metrics import compute_classification_metrics, compute_segmentation_metrics
 from hypersigma.utils.checkpoint import load_hypersigma_weights
 from hypersigma.mmcv_custom import LayerDecayOptimizerConstructor_ViT
 
@@ -193,6 +199,51 @@ def evaluate(model, loader, device):
     return np.array(all_preds), np.array(all_labels)
 
 
+def predict_full_map(model, data, patch_size, batch_size, device):
+    """Predict class for all pixels in the image.
+
+    Args:
+        model: Trained classification model
+        data: Full image data (H, W, C) after PCA
+        patch_size: Patch size for extraction
+        batch_size: Inference batch size
+        device: torch device
+
+    Returns:
+        full_predictions: (H, W) classification map
+    """
+    model.eval()
+    h, w, c = data.shape
+    margin = patch_size // 2
+
+    # Pad data
+    padded = np.pad(data, ((margin, margin), (margin, margin), (0, 0)), mode='reflect')
+
+    # Create all patches
+    all_patches = []
+    for i in range(h):
+        for j in range(w):
+            patch = padded[i:i + patch_size, j:j + patch_size, :]
+            all_patches.append(patch)
+
+    all_patches = np.array(all_patches)  # (H*W, patch_size, patch_size, C)
+
+    # Batch inference
+    predictions = []
+    # Convert to torch format: (N, C, H, W)
+    dataset = torch.FloatTensor(all_patches.transpose(0, 3, 1, 2))
+    loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+    with torch.no_grad():
+        for batch in loader:
+            batch = batch.to(device)
+            output = model(batch)
+            pred = output.argmax(dim=1)
+            predictions.extend(pred.cpu().numpy())
+
+    return np.array(predictions).reshape(h, w)
+
+
 def main():
     parser = argparse.ArgumentParser(description="HyperSIGMA Classification")
 
@@ -222,7 +273,7 @@ def main():
     parser.add_argument('--wd', type=float, default=0.05)
 
     # Data split
-    parser.add_argument('--samples_per_class', type=int, default=10)
+    parser.add_argument('--samples_per_class', type=int, default=50)
     parser.add_argument('--val_samples', type=int, default=5)
 
     # Experiment
@@ -231,6 +282,12 @@ def main():
 
     # Output
     parser.add_argument('--output_dir', type=str, default='results/classification')
+
+    # Segmentation evaluation
+    parser.add_argument('--eval_segmentation', action='store_true',
+                        help='Also evaluate full-map segmentation metrics')
+    parser.add_argument('--save_maps', action='store_true',
+                        help='Save predicted classification maps')
 
     args = parser.parse_args()
 
@@ -362,6 +419,24 @@ def main():
               f"AA: {metrics_dict['average_accuracy']:.4f}, "
               f"Kappa: {metrics_dict['kappa']:.4f}")
 
+        # Full-map segmentation evaluation
+        if args.eval_segmentation:
+            print("Running full-map segmentation evaluation...")
+            pred_map = predict_full_map(model, data, args.img_size, args.batch_size, device)
+            pred_map_adjusted = pred_map + 1  # Convert 0-indexed to 1-indexed
+            seg_metrics = compute_segmentation_metrics(pred_map_adjusted, gt, ignore_background=True)
+            metrics_dict.update(seg_metrics)
+
+            print(f"Seg OA: {seg_metrics['seg_overall_accuracy']:.4f}, "
+                  f"Seg AA: {seg_metrics['seg_average_accuracy']:.4f}, "
+                  f"Seg Kappa: {seg_metrics['seg_kappa']:.4f}")
+
+            # Optionally save classification map
+            if args.save_maps:
+                map_file = os.path.join(args.output_dir, f'pred_map_{args.dataset}_run{run}.npy')
+                np.save(map_file, pred_map_adjusted)
+                print(f"Saved prediction map to {map_file}")
+
         all_results.append(metrics_dict)
 
     # Aggregate results
@@ -369,10 +444,21 @@ def main():
     aa_list = [r['average_accuracy'] for r in all_results]
     kappa_list = [r['kappa'] for r in all_results]
 
-    print("\n===== Final Results =====")
+    print("\n===== Final Results (Pixel Classification) =====")
     print(f"OA: {np.mean(oa_list)*100:.2f}% +/- {np.std(oa_list)*100:.2f}%")
     print(f"AA: {np.mean(aa_list)*100:.2f}% +/- {np.std(aa_list)*100:.2f}%")
     print(f"Kappa: {np.mean(kappa_list):.4f} +/- {np.std(kappa_list):.4f}")
+
+    # Segmentation results aggregation
+    if args.eval_segmentation:
+        seg_oa_list = [r['seg_overall_accuracy'] for r in all_results]
+        seg_aa_list = [r['seg_average_accuracy'] for r in all_results]
+        seg_kappa_list = [r['seg_kappa'] for r in all_results]
+
+        print(f"\n===== Segmentation Results (Full Map) =====")
+        print(f"Seg OA: {np.mean(seg_oa_list)*100:.2f}% +/- {np.std(seg_oa_list)*100:.2f}%")
+        print(f"Seg AA: {np.mean(seg_aa_list)*100:.2f}% +/- {np.std(seg_aa_list)*100:.2f}%")
+        print(f"Seg Kappa: {np.mean(seg_kappa_list):.4f} +/- {np.std(seg_kappa_list):.4f}")
 
     # Save results
     result_json = {
@@ -400,6 +486,21 @@ def main():
         'config': vars(args),
         'timestamp': datetime.now().isoformat(),
     }
+
+    # Add segmentation metrics if evaluated
+    if args.eval_segmentation:
+        result_json['metrics']['seg_overall_accuracy'] = {
+            'mean': float(np.mean(seg_oa_list)),
+            'std': float(np.std(seg_oa_list)),
+        }
+        result_json['metrics']['seg_average_accuracy'] = {
+            'mean': float(np.mean(seg_aa_list)),
+            'std': float(np.std(seg_aa_list)),
+        }
+        result_json['metrics']['seg_kappa'] = {
+            'mean': float(np.mean(seg_kappa_list)),
+            'std': float(np.std(seg_kappa_list)),
+        }
 
     output_file = os.path.join(
         args.output_dir,

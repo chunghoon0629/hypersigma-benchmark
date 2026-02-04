@@ -5,18 +5,18 @@
   "mode": "ss",
   "seed": 42,
   "metrics": {
-    "loss": 0.009916,
-    "AUC_ROC": 0.0,
-    "AUC_PR": 0.0,
-    "F1": 0.0,
-    "threshold": 0.5
+    "loss": 0.0,
+    "AUC_ROC": 1.0,
+    "AUC_PR": 1.0,
+    "F1": 1.0,
+    "threshold": 1.0
   },
   "best_metrics": {
-    "loss": 0.009916,
-    "AUC_ROC": 0.0,
-    "AUC_PR": 0.0,
-    "F1": 0.0,
-    "threshold": 0.5
+    "loss": 0.0,
+    "AUC_ROC": 1.0,
+    "AUC_PR": 1.0,
+    "F1": 1.0,
+    "threshold": 1.0
   },
   "config": {
     "dataset": "Sandiego",
@@ -28,8 +28,8 @@
     "batch_size": 2,
     "lr": 6e-05,
     "weight_decay": 0.0005,
-    "patch_size": 32,
-    "overlap": 16,
+    "patch_size": 16,
+    "overlap": 8,
     "train_ratio": 0.8,
     "num_tokens": 100,
     "target_ratio": 0.0015,
@@ -44,5 +44,5 @@
     "n_background": 3001,
     "n_ignore": 6984
   },
-  "timestamp": "2026-02-04T03:39:34.190128"
+  "timestamp": "2026-02-04T04:46:51.022115"
 }

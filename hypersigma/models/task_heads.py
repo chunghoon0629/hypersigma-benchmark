@@ -1098,7 +1098,16 @@ class SumToOne(nn.Module):
 class UnmixingDecoder(nn.Module):
     """Linear decoder for spectral unmixing (endmember multiplication)."""
 
-    def __init__(self, num_bands: int, num_endmembers: int, kernel_size: int = 1):
+    def __init__(self, num_bands: int, num_endmembers: int, kernel_size: int = 1,
+                 init_endmembers: Optional[torch.Tensor] = None):
+        """
+        Args:
+            num_bands: Number of spectral bands
+            num_endmembers: Number of endmembers
+            kernel_size: Convolution kernel size
+            init_endmembers: Optional initial endmembers [num_endmembers, num_bands]
+                            from VCA or other extraction method
+        """
         super().__init__()
         self.num_bands = num_bands
         self.num_endmembers = num_endmembers
@@ -1109,6 +1118,43 @@ class UnmixingDecoder(nn.Module):
             num_endmembers, num_bands,
             kernel_size=kernel_size, padding=kernel_size // 2, bias=False
         )
+
+        # Initialize with VCA endmembers if provided
+        if init_endmembers is not None:
+            self._init_with_endmembers(init_endmembers)
+
+    def _init_with_endmembers(self, endmembers: torch.Tensor):
+        """Initialize decoder weights with extracted endmembers.
+
+        Args:
+            endmembers: [num_endmembers, num_bands] endmember matrix
+        """
+        if not isinstance(endmembers, torch.Tensor):
+            endmembers = torch.from_numpy(endmembers).float()
+
+        # Validate shape
+        if endmembers.shape != (self.num_endmembers, self.num_bands):
+            raise ValueError(
+                f"Expected endmembers shape ({self.num_endmembers}, {self.num_bands}), "
+                f"got {endmembers.shape}"
+            )
+
+        # decoder.weight shape: [num_bands, num_endmembers, kernel_size, kernel_size]
+        # endmembers shape: [num_endmembers, num_bands]
+        # We need to transpose: [num_bands, num_endmembers]
+        weight = endmembers.T  # [num_bands, num_endmembers]
+
+        if self.kernel_size == 1:
+            weight = weight.unsqueeze(-1).unsqueeze(-1)  # [num_bands, num_em, 1, 1]
+        else:
+            # For larger kernels, replicate across spatial dimensions
+            weight = weight.unsqueeze(-1).unsqueeze(-1)
+            weight = weight.expand(-1, -1, self.kernel_size, self.kernel_size).contiguous()
+            weight = weight / (self.kernel_size * self.kernel_size)  # Normalize
+
+        with torch.no_grad():
+            self.decoder.weight.copy_(weight)
+        print(f"Initialized decoder with VCA endmembers")
 
     def forward(self, abundances: torch.Tensor) -> torch.Tensor:
         """Reconstruct HSI from abundances."""
@@ -1139,7 +1185,20 @@ class UnmixingHead(nn.Module):
         num_tokens: int = 100,
         scale: float = 1.0,
         kernel_size: int = 1,
+        init_endmembers=None,
     ):
+        """
+        Args:
+            img_size: Input image size
+            in_channels: Number of spectral bands
+            num_endmembers: Number of endmembers to extract
+            spat_weights: Path to pretrained SpatViT weights
+            num_tokens: Number of tokens for feature projection
+            scale: Scale factor for softmax in sum-to-one constraint
+            kernel_size: Kernel size for decoder convolution
+            init_endmembers: Optional initial endmembers [num_endmembers, in_channels]
+                            from VCA or other extraction method (numpy array or tensor)
+        """
         super().__init__()
 
         print(f'Using SpatSIGMA backbone for unmixing ({num_endmembers} endmembers)')
@@ -1213,7 +1272,8 @@ class UnmixingHead(nn.Module):
         )
 
         self.sum_to_one = SumToOne(scale)
-        self.decoder = UnmixingDecoder(in_channels, num_endmembers, kernel_size)
+        self.decoder = UnmixingDecoder(in_channels, num_endmembers, kernel_size,
+                                       init_endmembers=init_endmembers)
 
     def get_abundances(self, x: torch.Tensor) -> torch.Tensor:
         """Extract abundance maps from input."""
@@ -1271,7 +1331,21 @@ class SSUnmixingHead(nn.Module):
         num_tokens: int = 100,
         scale: float = 1.0,
         kernel_size: int = 1,
+        init_endmembers=None,
     ):
+        """
+        Args:
+            img_size: Input image size
+            in_channels: Number of spectral bands
+            num_endmembers: Number of endmembers to extract
+            spat_weights: Path to pretrained SpatViT weights
+            spec_weights: Path to pretrained SpecViT weights
+            num_tokens: Number of tokens for feature projection
+            scale: Scale factor for softmax in sum-to-one constraint
+            kernel_size: Kernel size for decoder convolution
+            init_endmembers: Optional initial endmembers [num_endmembers, in_channels]
+                            from VCA or other extraction method (numpy array or tensor)
+        """
         super().__init__()
 
         print(f'Using HyperSIGMA (Spat+Spec) backbone for unmixing ({num_endmembers} endmembers)')
@@ -1403,7 +1477,8 @@ class SSUnmixingHead(nn.Module):
         )
 
         self.sum_to_one = SumToOne(scale)
-        self.decoder = UnmixingDecoder(in_channels, num_endmembers, kernel_size)
+        self.decoder = UnmixingDecoder(in_channels, num_endmembers, kernel_size,
+                                       init_endmembers=init_endmembers)
 
     def forward_fusion(self, x: torch.Tensor):
         """Extract and fuse spatial-spectral features."""

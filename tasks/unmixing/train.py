@@ -123,11 +123,79 @@ def compute_sam_degrees(pred, target):
     return (angle.mean() * 180 / np.pi).item()
 
 
+def vca(data, num_endmembers, seed=None):
+    """
+    Vertex Component Analysis for endmember extraction.
+
+    VCA is a geometric approach that finds pure pixels (endmembers) by
+    iteratively projecting data onto directions orthogonal to previously
+    selected endmembers and finding extreme points.
+
+    Args:
+        data: [N, C] spectral data (N pixels, C bands)
+        num_endmembers: number of endmembers to extract
+        seed: random seed for reproducibility
+
+    Returns:
+        endmembers: [num_endmembers, C] extracted endmembers
+        indices: indices of selected pixels
+    """
+    if seed is not None:
+        np.random.seed(seed)
+
+    N, C = data.shape
+
+    # 1. Dimensionality reduction via SVD
+    data_centered = data - data.mean(axis=0)
+    U, S, Vt = np.linalg.svd(data_centered.T, full_matrices=False)
+
+    # Project to num_endmembers-1 dimensions (affine subspace)
+    num_proj = min(num_endmembers - 1, C - 1, N - 1)
+    if num_proj < 1:
+        num_proj = 1
+    proj = U[:, :num_proj].T @ data_centered.T  # [num_proj, N]
+
+    # 2. Iteratively find vertices (extreme points)
+    indices = []
+
+    # Random initial direction
+    w = np.random.randn(num_proj)
+    w /= (np.linalg.norm(w) + 1e-10)
+
+    for i in range(num_endmembers):
+        # Project data onto direction w
+        projections = proj.T @ w  # [N]
+
+        # Find extreme point (furthest from origin in direction w)
+        idx = np.argmax(np.abs(projections))
+        indices.append(idx)
+
+        # Update direction (orthogonal to selected points)
+        if i < num_endmembers - 1:
+            selected = proj[:, indices]  # [num_proj, i+1]
+            # Gram-Schmidt orthogonalization: find direction orthogonal to selected
+            w = np.random.randn(num_proj)
+            for j in range(len(indices)):
+                v = selected[:, j]
+                v_norm = np.dot(v, v) + 1e-10
+                w = w - (np.dot(w, v) / v_norm) * v
+            norm_w = np.linalg.norm(w)
+            if norm_w > 1e-10:
+                w /= norm_w
+            else:
+                # If w becomes zero, use random direction
+                w = np.random.randn(num_proj)
+                w /= (np.linalg.norm(w) + 1e-10)
+
+    endmembers = data[indices]
+    return endmembers, indices
+
+
 class UnmixingDataset(Data.Dataset):
     """Dataset for spectral unmixing with patch extraction."""
 
     def __init__(self, hsi, abundances, patch_size=7, mode='train',
-                 train_ratio=0.8, seed=42):
+                 train_ratio=0.8, seed=42, augment=False):
         """
         Args:
             hsi: HSI cube (H, W, C)
@@ -135,9 +203,12 @@ class UnmixingDataset(Data.Dataset):
             patch_size: Size of patches to extract
             mode: 'train' or 'test'
             train_ratio: Ratio of data for training
+            seed: Random seed for train/test split
+            augment: Whether to apply data augmentation (random flips)
         """
         self.patch_size = patch_size
         self.half_size = patch_size // 2
+        self.augment = augment
 
         # Normalize HSI
         self.hsi = hsi.astype(np.float32)
@@ -175,7 +246,8 @@ class UnmixingDataset(Data.Dataset):
         else:
             self.positions = valid_positions[n_train:]
 
-        print(f"{mode} set: {len(self.positions)} samples, {self.num_endmembers} endmembers")
+        aug_str = " (with augmentation)" if augment else ""
+        print(f"{mode} set: {len(self.positions)} samples, {self.num_endmembers} endmembers{aug_str}")
 
     def __len__(self):
         return len(self.positions)
@@ -188,11 +260,32 @@ class UnmixingDataset(Data.Dataset):
             h - self.half_size:h + self.half_size + 1,
             w - self.half_size:w + self.half_size + 1,
             :
-        ]
+        ].copy()
 
-        # Get center pixel abundance and spectrum
-        abundance = self.abundances[h, w, :]
-        center_spectrum = self.hsi[h, w, :]
+        # Get abundance patch (for augmentation consistency)
+        abundance_patch = self.abundances[
+            h - self.half_size:h + self.half_size + 1,
+            w - self.half_size:w + self.half_size + 1,
+            :
+        ].copy()
+
+        # Apply augmentation (training only)
+        if self.augment:
+            # Random Horizontal Flip
+            if np.random.random() > 0.5:
+                patch = np.flip(patch, axis=1).copy()
+                abundance_patch = np.flip(abundance_patch, axis=1).copy()
+
+            # Random Vertical Flip
+            if np.random.random() > 0.5:
+                patch = np.flip(patch, axis=0).copy()
+                abundance_patch = np.flip(abundance_patch, axis=0).copy()
+
+        # Get center pixel abundance and spectrum (after augmentation)
+        center_h = self.half_size
+        center_w = self.half_size
+        abundance = abundance_patch[center_h, center_w, :]
+        center_spectrum = patch[center_h, center_w, :]
 
         # Convert to tensors [C, H, W] for patch
         patch = torch.from_numpy(patch.transpose(2, 0, 1)).float()
@@ -342,6 +435,10 @@ def main():
                         help='Total Variation loss weight')
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--output_dir', type=str, default='results/unmixing')
+    parser.add_argument('--augment', action='store_true',
+                        help='Enable data augmentation (random horizontal/vertical flips)')
+    parser.add_argument('--no_vca', action='store_true',
+                        help='Disable VCA initialization for endmembers')
     args = parser.parse_args()
 
     setup_seed(args.seed)
@@ -392,16 +489,32 @@ def main():
     print(f"Abundances shape: {abundances.shape}")
     print(f"Number of endmembers: {num_end}")
 
+    # Extract initial endmembers using VCA
+    vca_endmembers = None
+    if not args.no_vca:
+        print("\nExtracting initial endmembers using VCA...")
+        # Normalize HSI for VCA (same normalization as dataset)
+        hsi_norm = hsi.astype(np.float32)
+        hsi_min, hsi_max = hsi_norm.min(), hsi_norm.max()
+        hsi_norm = (hsi_norm - hsi_min) / (hsi_max - hsi_min + 1e-8)
+        flat_data = hsi_norm.reshape(-1, hsi_norm.shape[-1])  # [H*W, C]
+        vca_endmembers, vca_indices = vca(flat_data, num_end, seed=args.seed)
+        print(f"VCA extracted {num_end} endmembers, shape: {vca_endmembers.shape}")
+    else:
+        print("\nVCA initialization disabled, using random initialization")
+
     # Create datasets
     train_dataset = UnmixingDataset(
         hsi, abundances,
         patch_size=args.patch_size, mode='train',
-        train_ratio=args.train_ratio, seed=args.seed
+        train_ratio=args.train_ratio, seed=args.seed,
+        augment=args.augment
     )
     test_dataset = UnmixingDataset(
         hsi, abundances,
         patch_size=args.patch_size, mode='test',
-        train_ratio=args.train_ratio, seed=args.seed
+        train_ratio=args.train_ratio, seed=args.seed,
+        augment=False  # Never augment test set
     )
 
     train_loader = Data.DataLoader(
@@ -425,6 +538,7 @@ def main():
             spat_weights=args.spat_weights,
             spec_weights=args.spec_weights,
             num_tokens=args.num_tokens,
+            init_endmembers=vca_endmembers,
         )
     else:
         model = UnmixingHead(
@@ -432,6 +546,7 @@ def main():
             in_channels=C,
             num_endmembers=num_end,
             spat_weights=args.spat_weights,
+            init_endmembers=vca_endmembers,
         )
 
     model = model.cuda()
@@ -511,6 +626,8 @@ def main():
             'sparsity_alpha': args.sparsity_alpha,
             'tv_beta': args.tv_beta,
             'seed': args.seed,
+            'augment': args.augment,
+            'vca_init': not args.no_vca,
         },
         'timestamp': datetime.now().isoformat(),
     }

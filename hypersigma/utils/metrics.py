@@ -102,3 +102,47 @@ def aa_and_each_accuracy(confusion_matrix: np.ndarray) -> Tuple[np.ndarray, floa
     average_acc = np.mean(each_acc)
 
     return each_acc, average_acc
+
+
+def compute_segmentation_metrics(
+    pred_map: np.ndarray,
+    gt_map: np.ndarray,
+    ignore_background: bool = True,
+) -> Dict[str, float]:
+    """
+    Compute segmentation metrics on full classification map.
+
+    Args:
+        pred_map: Predicted classification map (H, W)
+        gt_map: Ground truth map (H, W)
+        ignore_background: If True, exclude background (label 0) from metrics
+
+    Returns:
+        Dictionary containing segmentation metrics.
+    """
+    pred_flat = pred_map.flatten()
+    gt_flat = gt_map.flatten()
+
+    if ignore_background:
+        # Only evaluate on labeled pixels
+        mask = gt_flat > 0
+        pred_eval = pred_flat[mask]
+        gt_eval = gt_flat[mask]
+    else:
+        pred_eval = pred_flat
+        gt_eval = gt_flat
+
+    # Compute metrics
+    oa = metrics.accuracy_score(gt_eval, pred_eval)
+    cm = metrics.confusion_matrix(gt_eval, pred_eval)
+    per_class_acc = cm.diagonal() / cm.sum(axis=1)
+    aa = np.nanmean(per_class_acc)
+    kappa = metrics.cohen_kappa_score(gt_eval, pred_eval)
+
+    return {
+        'seg_overall_accuracy': round(oa, 4),
+        'seg_average_accuracy': round(aa, 4),
+        'seg_kappa': round(kappa, 4),
+        'seg_per_class_accuracy': per_class_acc.tolist(),
+        'total_pixels_evaluated': int(len(gt_eval)),
+    }
