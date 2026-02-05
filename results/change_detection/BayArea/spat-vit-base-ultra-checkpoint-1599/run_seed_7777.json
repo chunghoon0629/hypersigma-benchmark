@@ -1,0 +1,38 @@
+{
+  "schema_version": "2.0",
+  "task": "change_detection",
+  "dataset": "BayArea",
+  "checkpoint_name": "spat-vit-base-ultra-checkpoint-1599",
+  "checkpoint_path": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+  "experiment_name": "hypersigma_benchmark",
+  "model_config": {},
+  "experiment_config": {
+    "dataset": "BayArea",
+    "data_dir": "/home/jovyan/gnew-b200-2-datavol-1/chlee/Domain-independent-SpectralFM/hypersigma-benchmark/tasks/change_detection/../../../data/benchmark/change_detection",
+    "mode": "ss",
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
+    "epochs": 50,
+    "batch_size": 32,
+    "lr": 6e-05,
+    "train_number": 500,
+    "patch_size": 15,
+    "model": "HyperSIGMA"
+  },
+  "seed": 7777,
+  "metrics": {
+    "overall_accuracy": 0.9896,
+    "kappa": 0.9791,
+    "F1": 0.9903,
+    "precision": 0.99,
+    "recall": 0.9905,
+    "AUC_ROC": null,
+    "AUC_PR": null,
+    "false_alarm_rate": null,
+    "true_positives": null,
+    "true_negatives": null,
+    "false_positives": null,
+    "false_negatives": null
+  },
+  "timestamp": "2026-02-05T01:29:19.569420"
+}
