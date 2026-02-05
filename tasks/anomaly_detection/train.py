@@ -264,11 +264,19 @@ def main():
 
     args = parser.parse_args()
 
-    # Set random seed
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(args.seed)
+    # Set random seed (ensure full reproducibility with variation across seeds)
+    def set_seed(seed):
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+        # Ensure DataLoader workers get different seeds
+        torch.backends.cudnn.deterministic = False
+        torch.backends.cudnn.benchmark = True
+
+    set_seed(args.seed)
+    print(f"Random seed set to: {args.seed}")
 
     # Create output directory
     save_path = os.path.join(args.output_dir, args.mode)
@@ -382,12 +390,17 @@ def main():
 
         y_val_data = torch.from_numpy(y_val_data)
 
-        # Create data loaders
+        # Create data loaders with proper worker seeding
         torch.cuda.empty_cache()
+
+        def worker_init_fn(worker_id):
+            np.random.seed(args.seed + worker_id)
+
         trn_dataset = TensorDataset(X_data, y_trn_data)
         trn_loader = DataLoader(
             trn_dataset, batch_size=args.batch_size, num_workers=args.workers,
-            shuffle=True, drop_last=True, pin_memory=True
+            shuffle=True, drop_last=True, pin_memory=True,
+            worker_init_fn=worker_init_fn
         )
 
         val_dataset = TensorDataset(X_data, y_val_data)

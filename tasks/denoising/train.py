@@ -140,11 +140,13 @@ class WDCTrainDataset(Data.Dataset):
 
 
 class WDCTestDataset(Data.Dataset):
-    """WDC Test dataset - loads pre-generated noisy/clean pairs."""
+    """WDC Test dataset - extracts patches to match model input size."""
 
-    def __init__(self, data_dir, sigma=50):
+    def __init__(self, data_dir, sigma=50, patch_size=64, stride=32):
         self.data_dir = data_dir
         self.sigma = sigma
+        self.patch_size = patch_size
+        self.stride = stride
 
         # Load test data for specified sigma
         mat_path = os.path.join(data_dir, f'wdc_sigma{sigma}.mat')
@@ -158,14 +160,25 @@ class WDCTestDataset(Data.Dataset):
         self.H, self.W, self.C = self.clean.shape
         print(f"Loaded WDC test data (sigma={sigma}): {self.clean.shape}")
 
+        # Extract patches for evaluation (matching training patch size)
+        self.patches = []
+        for i in range(0, self.H - patch_size + 1, stride):
+            for j in range(0, self.W - patch_size + 1, stride):
+                self.patches.append((i, j))
+        print(f"Extracted {len(self.patches)} test patches ({patch_size}x{patch_size})")
+
     def __len__(self):
-        return 1  # Single full image
+        return len(self.patches)
 
     def __getitem__(self, idx):
-        # Convert to tensor [C, H, W]
-        clean = torch.from_numpy(self.clean.transpose(2, 0, 1)).float()
-        noisy = torch.from_numpy(self.noisy.transpose(2, 0, 1)).float()
-        return noisy, clean
+        i, j = self.patches[idx]
+        ps = self.patch_size
+
+        # Extract patch [H, W, C] -> [C, H, W]
+        clean_patch = self.clean[i:i+ps, j:j+ps, :].transpose(2, 0, 1)
+        noisy_patch = self.noisy[i:i+ps, j:j+ps, :].transpose(2, 0, 1)
+
+        return torch.from_numpy(noisy_patch).float(), torch.from_numpy(clean_patch).float()
 
 
 def train_epoch(model, train_loader, criterion, optimizer):
