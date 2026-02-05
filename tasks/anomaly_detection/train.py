@@ -541,16 +541,23 @@ def main():
         'model': 'HyperSIGMA',
     })
 
-    # Compute precision and recall from AUC metrics (approximate F1)
-    # Note: For anomaly detection, we use AUC-ROC as primary metric
+    # Note: For anomaly detection, AUC-ROC is the primary metric
+    # F1/precision/recall require thresholding which isn't standard for AD
+    # Store AUC metrics with correct labels
     manager.log_run(
         seed=args.seed,
         metrics=AnomalyDetectionMetrics(
             AUC_ROC=float(results[0, -2]),  # Mean across internal runs
-            F1=float(results[3, -2]),  # auc_combined as proxy for F1
-            precision=float(results[1, -2]),  # auc_fpr
-            recall=float(results[2, -2]),  # auc_tpr
-        )
+            F1=0.0,  # Not computed for threshold-free AD
+            precision=0.0,  # Not computed for threshold-free AD
+            recall=0.0,  # Not computed for threshold-free AD
+        ),
+        extra={
+            'auc_fpr': float(results[1, -2]),
+            'auc_tpr': float(results[2, -2]),
+            'auc_combined': float(results[3, -2]),
+            'auc_ratio': float(results[4, -2]),
+        }
     )
     manager.try_auto_aggregate()
 

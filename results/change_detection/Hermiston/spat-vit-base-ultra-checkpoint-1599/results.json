@@ -1,0 +1,265 @@
+{
+  "schema_version": "2.0",
+  "task": "change_detection",
+  "dataset": "Hermiston",
+  "checkpoint_name": "spat-vit-base-ultra-checkpoint-1599",
+  "checkpoint_path": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+  "experiment_name": "hypersigma_benchmark",
+  "timestamp": "2026-02-04T23:36:20.027228",
+  "model_config": {},
+  "experiment_config": {
+    "dataset": "Hermiston",
+    "data_dir": "/home/jovyan/gnew-b200-2-datavol-1/chlee/Domain-independent-SpectralFM/hypersigma-benchmark/tasks/change_detection/../../../data/benchmark/change_detection",
+    "mode": "ss",
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
+    "epochs": 50,
+    "batch_size": 32,
+    "lr": 6e-05,
+    "train_number": 500,
+    "patch_size": 5,
+    "model": "HyperSIGMA"
+  },
+  "num_seeds": 10,
+  "seeds": [
+    42,
+    123,
+    456,
+    789,
+    1111,
+    1234,
+    2024,
+    5678,
+    7777,
+    9999
+  ],
+  "summary_statistics": {
+    "F1": {
+      "mean": 0.9466999999999999,
+      "std": 0.0069333974356011255,
+      "min": 0.9307,
+      "max": 0.9582,
+      "count": 10
+    },
+    "kappa": {
+      "mean": 0.9384400000000002,
+      "std": 0.008101012282424967,
+      "min": 0.9197,
+      "max": 0.9518,
+      "count": 10
+    },
+    "overall_accuracy": {
+      "mean": 0.98567,
+      "std": 0.0019970227840462895,
+      "min": 0.981,
+      "max": 0.9889,
+      "count": 10
+    },
+    "precision": {
+      "mean": 0.90441,
+      "std": 0.014036840812661535,
+      "min": 0.8734,
+      "max": 0.9291,
+      "count": 10
+    },
+    "recall": {
+      "mean": 0.99328,
+      "std": 0.002783451095313161,
+      "min": 0.9878,
+      "max": 0.996,
+      "count": 10
+    }
+  },
+  "individual_results": [
+    {
+      "seed": 42,
+      "metrics": {
+        "overall_accuracy": 0.9853,
+        "kappa": 0.9367,
+        "F1": 0.9452,
+        "precision": 0.902,
+        "recall": 0.9927,
+        "AUC_ROC": null,
+        "AUC_PR": null,
+        "false_alarm_rate": null,
+        "true_positives": null,
+        "true_negatives": null,
+        "false_positives": null,
+        "false_negatives": null
+      },
+      "timestamp": "2026-02-04T22:08:13.598585",
+      "extra": null
+    },
+    {
+      "seed": 123,
+      "metrics": {
+        "overall_accuracy": 0.9889,
+        "kappa": 0.9518,
+        "F1": 0.9582,
+        "precision": 0.9291,
+        "recall": 0.9892,
+        "AUC_ROC": null,
+        "AUC_PR": null,
+        "false_alarm_rate": null,
+        "true_positives": null,
+        "true_negatives": null,
+        "false_positives": null,
+        "false_negatives": null
+      },
+      "timestamp": "2026-02-04T22:18:02.246458",
+      "extra": null
+    },
+    {
+      "seed": 456,
+      "metrics": {
+        "overall_accuracy": 0.9864,
+        "kappa": 0.9415,
+        "F1": 0.9493,
+        "precision": 0.9088,
+        "recall": 0.9936,
+        "AUC_ROC": null,
+        "AUC_PR": null,
+        "false_alarm_rate": null,
+        "true_positives": null,
+        "true_negatives": null,
+        "false_positives": null,
+        "false_negatives": null
+      },
+      "timestamp": "2026-02-04T22:27:55.559294",
+      "extra": null
+    },
+    {
+      "seed": 789,
+      "metrics": {
+        "overall_accuracy": 0.9854,
+        "kappa": 0.9374,
+        "F1": 0.9458,
+        "precision": 0.9006,
+        "recall": 0.9957,
+        "AUC_ROC": null,
+        "AUC_PR": null,
+        "false_alarm_rate": null,
+        "true_positives": null,
+        "true_negatives": null,
+        "false_positives": null,
+        "false_negatives": null
+      },
+      "timestamp": "2026-02-04T22:37:43.317269",
+      "extra": null
+    },
+    {
+      "seed": 1111,
+      "metrics": {
+        "overall_accuracy": 0.986,
+        "kappa": 0.9394,
+        "F1": 0.9475,
+        "precision": 0.9103,
+        "recall": 0.9878,
+        "AUC_ROC": null,
+        "AUC_PR": null,
+        "false_alarm_rate": null,
+        "true_positives": null,
+        "true_negatives": null,
+        "false_positives": null,
+        "false_negatives": null
+      },
+      "timestamp": "2026-02-04T23:26:34.150599",
+      "extra": null
+    },
+    {
+      "seed": 1234,
+      "metrics": {
+        "overall_accuracy": 0.9846,
+        "kappa": 0.934,
+        "F1": 0.9429,
+        "precision": 0.8955,
+        "recall": 0.9955,
+        "AUC_ROC": null,
+        "AUC_PR": null,
+        "false_alarm_rate": null,
+        "true_positives": null,
+        "true_negatives": null,
+        "false_positives": null,
+        "false_negatives": null
+      },
+      "timestamp": "2026-02-04T22:57:21.832769",
+      "extra": null
+    },
+    {
+      "seed": 2024,
+      "metrics": {
+        "overall_accuracy": 0.9847,
+        "kappa": 0.9346,
+        "F1": 0.9434,
+        "precision": 0.8965,
+        "recall": 0.9955,
+        "AUC_ROC": null,
+        "AUC_PR": null,
+        "false_alarm_rate": null,
+        "true_positives": null,
+        "true_negatives": null,
+        "false_positives": null,
+        "false_negatives": null
+      },
+      "timestamp": "2026-02-04T22:47:28.366007",
+      "extra": null
+    },
+    {
+      "seed": 5678,
+      "metrics": {
+        "overall_accuracy": 0.9873,
+        "kappa": 0.9452,
+        "F1": 0.9525,
+        "precision": 0.9133,
+        "recall": 0.9953,
+        "AUC_ROC": null,
+        "AUC_PR": null,
+        "false_alarm_rate": null,
+        "true_positives": null,
+        "true_negatives": null,
+        "false_positives": null,
+        "false_negatives": null
+      },
+      "timestamp": "2026-02-04T23:07:09.609594",
+      "extra": null
+    },
+    {
+      "seed": 7777,
+      "metrics": {
+        "overall_accuracy": 0.9871,
+        "kappa": 0.9441,
+        "F1": 0.9515,
+        "precision": 0.9146,
+        "recall": 0.9915,
+        "AUC_ROC": null,
+        "AUC_PR": null,
+        "false_alarm_rate": null,
+        "true_positives": null,
+        "true_negatives": null,
+        "false_positives": null,
+        "false_negatives": null
+      },
+      "timestamp": "2026-02-04T23:36:20.025749",
+      "extra": null
+    },
+    {
+      "seed": 9999,
+      "metrics": {
+        "overall_accuracy": 0.981,
+        "kappa": 0.9197,
+        "F1": 0.9307,
+        "precision": 0.8734,
+        "recall": 0.996,
+        "AUC_ROC": null,
+        "AUC_PR": null,
+        "false_alarm_rate": null,
+        "true_positives": null,
+        "true_negatives": null,
+        "false_positives": null,
+        "false_negatives": null
+      },
+      "timestamp": "2026-02-04T23:16:51.900826",
+      "extra": null
+    }
+  ]
+}

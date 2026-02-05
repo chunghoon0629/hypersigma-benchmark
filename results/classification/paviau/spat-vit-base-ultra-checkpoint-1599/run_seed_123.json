@@ -1,13 +1,13 @@
 {
   "schema_version": "2.0",
   "task": "classification",
-  "dataset": "indian_pines",
+  "dataset": "paviau",
   "checkpoint_name": "spat-vit-base-ultra-checkpoint-1599",
   "checkpoint_path": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
   "experiment_name": "hypersigma_benchmark",
   "model_config": {},
   "experiment_config": {
-    "dataset": "indian_pines",
+    "dataset": "paviau",
     "data_dir": "/home/jovyan/gnew-b200-2-datavol-1/chlee/Domain-independent-SpectralFM/hypersigma-benchmark/tasks/classification/../../../data/benchmark/classification",
     "model_size": "base",
     "samples_per_class": 50,
@@ -23,16 +23,16 @@
     "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
     "model": "HyperSIGMA"
   },
-  "seed": 5678,
+  "seed": 123,
   "metrics": {
-    "overall_accuracy": 0.8574,
-    "kappa": 0.8381,
-    "average_accuracy": 0.9248,
-    "F1_macro": 0.7907,
+    "overall_accuracy": 0.9373,
+    "kappa": 0.9138,
+    "average_accuracy": 0.9587,
+    "F1_macro": 0.9293,
     "F1_weighted": null,
     "per_class_accuracy": null
   },
-  "timestamp": "2026-02-04T16:42:04.849900",
+  "timestamp": "2026-02-04T17:16:46.717042",
   "extra": {
     "num_runs": 1,
     "oa_std": 0.0,
@@ -40,28 +40,19 @@
     "kappa_std": 0.0,
     "per_run_results": [
       {
-        "overall_accuracy": 0.8574,
-        "average_accuracy": 0.9248,
-        "kappa": 0.8381,
-        "f1_weighted": 0.8592,
-        "f1_macro": 0.7907,
+        "overall_accuracy": 0.9373,
+        "average_accuracy": 0.9587,
+        "kappa": 0.9138,
+        "f1_weighted": 0.9385,
+        "f1_macro": 0.9293,
         "per_class_accuracy": [
-          1.0,
-          0.7254187909686817,
-          0.7780645161290323,
-          0.989010989010989,
-          0.8504672897196262,
-          0.9866666666666667,
-          1.0,
-          1.0,
-          1.0,
-          0.8516902944383861,
-          0.7970833333333334,
-          0.8420074349442379,
-          1.0,
-          0.9818181818181818,
-          0.9939577039274925,
-          1.0
+          0.8796942505815886,
+          0.9779501216545012,
+          0.9716018748276812,
+          0.9905882352941177,
+          0.992152466367713,
+          0.9037323867914381,
+          0.9953759549658223
         ]
       }
     ]

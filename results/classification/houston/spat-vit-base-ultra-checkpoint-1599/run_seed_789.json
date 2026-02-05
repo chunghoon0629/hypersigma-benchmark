@@ -1,13 +1,13 @@
 {
   "schema_version": "2.0",
   "task": "classification",
-  "dataset": "indian_pines",
+  "dataset": "houston",
   "checkpoint_name": "spat-vit-base-ultra-checkpoint-1599",
   "checkpoint_path": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
   "experiment_name": "hypersigma_benchmark",
   "model_config": {},
   "experiment_config": {
-    "dataset": "indian_pines",
+    "dataset": "houston",
     "data_dir": "/home/jovyan/gnew-b200-2-datavol-1/chlee/Domain-independent-SpectralFM/hypersigma-benchmark/tasks/classification/../../../data/benchmark/classification",
     "model_size": "base",
     "samples_per_class": 50,
@@ -23,16 +23,16 @@
     "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
     "model": "HyperSIGMA"
   },
-  "seed": 5678,
+  "seed": 789,
   "metrics": {
-    "overall_accuracy": 0.8574,
-    "kappa": 0.8381,
-    "average_accuracy": 0.9248,
-    "F1_macro": 0.7907,
+    "overall_accuracy": 0.9567,
+    "kappa": 0.9531,
+    "average_accuracy": 0.9633,
+    "F1_macro": 0.9583,
     "F1_weighted": null,
     "per_class_accuracy": null
   },
-  "timestamp": "2026-02-04T16:42:04.849900",
+  "timestamp": "2026-02-04T18:40:16.921016",
   "extra": {
     "num_runs": 1,
     "oa_std": 0.0,
@@ -40,28 +40,27 @@
     "kappa_std": 0.0,
     "per_run_results": [
       {
-        "overall_accuracy": 0.8574,
-        "average_accuracy": 0.9248,
-        "kappa": 0.8381,
-        "f1_weighted": 0.8592,
-        "f1_macro": 0.7907,
+        "overall_accuracy": 0.9567,
+        "average_accuracy": 0.9633,
+        "kappa": 0.9531,
+        "f1_weighted": 0.9566,
+        "f1_macro": 0.9583,
         "per_class_accuracy": [
+          0.931323283082077,
+          0.9824561403508771,
+          0.9859375,
+          0.9182813816343723,
           1.0,
-          0.7254187909686817,
-          0.7780645161290323,
-          0.989010989010989,
-          0.8504672897196262,
-          0.9866666666666667,
+          0.9701492537313433,
+          0.9595375722543352,
+          0.9199663016006739,
+          0.8602510460251046,
+          0.9743589743589743,
+          0.99830220713073,
+          0.9574829931972789,
+          0.9951456310679612,
           1.0,
-          1.0,
-          1.0,
-          0.8516902944383861,
-          0.7970833333333334,
-          0.8420074349442379,
-          1.0,
-          0.9818181818181818,
-          0.9939577039274925,
-          1.0
+          0.9966832504145937
         ]
       }
     ]

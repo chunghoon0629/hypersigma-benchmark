@@ -1,0 +1,32 @@
+{
+  "schema_version": "2.0",
+  "task": "target_detection",
+  "dataset": "Sandiego",
+  "checkpoint_name": "spat-vit-base-ultra-checkpoint-1599",
+  "checkpoint_path": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+  "experiment_name": "hypersigma_benchmark",
+  "model_config": {},
+  "experiment_config": {
+    "dataset": "Sandiego",
+    "data_dir": "/home/jovyan/gnew-b200-2-datavol-1/chlee/Domain-independent-SpectralFM/hypersigma-benchmark/tasks/target_detection/../../../data/benchmark/target_detection/SanDiego",
+    "mode": "sa",
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": null,
+    "epochs": 50,
+    "batch_size": 32,
+    "lr": 0.0001,
+    "patch_size": 7,
+    "train_ratio": 0.5,
+    "num_tokens": null,
+    "model": "HyperSIGMA"
+  },
+  "seed": 5678,
+  "metrics": {
+    "AUC_ROC": 0.9973,
+    "F1": 0.6857,
+    "precision": 0.0,
+    "recall": 0.0,
+    "average_precision": 0.697
+  },
+  "timestamp": "2026-02-04T21:55:25.084551"
+}

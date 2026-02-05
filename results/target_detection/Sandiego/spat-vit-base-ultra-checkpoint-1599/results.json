@@ -1,0 +1,196 @@
+{
+  "schema_version": "2.0",
+  "task": "target_detection",
+  "dataset": "Sandiego",
+  "checkpoint_name": "spat-vit-base-ultra-checkpoint-1599",
+  "checkpoint_path": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+  "experiment_name": "hypersigma_benchmark",
+  "timestamp": "2026-02-04T21:58:14.365206",
+  "model_config": {},
+  "experiment_config": {
+    "dataset": "Sandiego",
+    "data_dir": "/home/jovyan/gnew-b200-2-datavol-1/chlee/Domain-independent-SpectralFM/hypersigma-benchmark/tasks/target_detection/../../../data/benchmark/target_detection/SanDiego",
+    "mode": "sa",
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": null,
+    "epochs": 50,
+    "batch_size": 32,
+    "lr": 0.0001,
+    "patch_size": 7,
+    "train_ratio": 0.5,
+    "num_tokens": null,
+    "model": "HyperSIGMA"
+  },
+  "num_seeds": 10,
+  "seeds": [
+    42,
+    123,
+    456,
+    789,
+    1111,
+    1234,
+    2024,
+    5678,
+    7777,
+    9999
+  ],
+  "summary_statistics": {
+    "AUC_ROC": {
+      "mean": 0.99848,
+      "std": 0.0009086253353280537,
+      "min": 0.9971,
+      "max": 0.9998,
+      "count": 10
+    },
+    "F1": {
+      "mean": 0.7953600000000001,
+      "std": 0.08417187416233524,
+      "min": 0.6582,
+      "max": 0.9153,
+      "count": 10
+    },
+    "average_precision": {
+      "mean": 0.81799,
+      "std": 0.11349803919011112,
+      "min": 0.6595,
+      "max": 0.9722,
+      "count": 10
+    },
+    "precision": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "count": 10
+    },
+    "recall": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "count": 10
+    }
+  },
+  "individual_results": [
+    {
+      "seed": 42,
+      "metrics": {
+        "AUC_ROC": 0.9998,
+        "F1": 0.9153,
+        "precision": 0.0,
+        "recall": 0.0,
+        "average_precision": 0.9722
+      },
+      "timestamp": "2026-02-04T21:49:48.616919",
+      "extra": null
+    },
+    {
+      "seed": 123,
+      "metrics": {
+        "AUC_ROC": 0.9972,
+        "F1": 0.6933,
+        "precision": 0.0,
+        "recall": 0.0,
+        "average_precision": 0.6595
+      },
+      "timestamp": "2026-02-04T21:50:43.872765",
+      "extra": null
+    },
+    {
+      "seed": 456,
+      "metrics": {
+        "AUC_ROC": 0.9985,
+        "F1": 0.7826,
+        "precision": 0.0,
+        "recall": 0.0,
+        "average_precision": 0.6846
+      },
+      "timestamp": "2026-02-04T21:51:38.542778",
+      "extra": null
+    },
+    {
+      "seed": 789,
+      "metrics": {
+        "AUC_ROC": 0.9988,
+        "F1": 0.8475,
+        "precision": 0.0,
+        "recall": 0.0,
+        "average_precision": 0.9245
+      },
+      "timestamp": "2026-02-04T21:52:35.189258",
+      "extra": null
+    },
+    {
+      "seed": 1111,
+      "metrics": {
+        "AUC_ROC": 0.9993,
+        "F1": 0.8421,
+        "precision": 0.0,
+        "recall": 0.0,
+        "average_precision": 0.8981
+      },
+      "timestamp": "2026-02-04T21:57:17.284676",
+      "extra": null
+    },
+    {
+      "seed": 1234,
+      "metrics": {
+        "AUC_ROC": 0.9971,
+        "F1": 0.6582,
+        "precision": 0.0,
+        "recall": 0.0,
+        "average_precision": 0.6931
+      },
+      "timestamp": "2026-02-04T21:54:27.122906",
+      "extra": null
+    },
+    {
+      "seed": 2024,
+      "metrics": {
+        "AUC_ROC": 0.9986,
+        "F1": 0.8,
+        "precision": 0.0,
+        "recall": 0.0,
+        "average_precision": 0.857
+      },
+      "timestamp": "2026-02-04T21:53:32.221754",
+      "extra": null
+    },
+    {
+      "seed": 5678,
+      "metrics": {
+        "AUC_ROC": 0.9973,
+        "F1": 0.6857,
+        "precision": 0.0,
+        "recall": 0.0,
+        "average_precision": 0.697
+      },
+      "timestamp": "2026-02-04T21:55:25.084551",
+      "extra": null
+    },
+    {
+      "seed": 7777,
+      "metrics": {
+        "AUC_ROC": 0.9992,
+        "F1": 0.8475,
+        "precision": 0.0,
+        "recall": 0.0,
+        "average_precision": 0.8887
+      },
+      "timestamp": "2026-02-04T21:58:14.363610",
+      "extra": null
+    },
+    {
+      "seed": 9999,
+      "metrics": {
+        "AUC_ROC": 0.999,
+        "F1": 0.8814,
+        "precision": 0.0,
+        "recall": 0.0,
+        "average_precision": 0.9052
+      },
+      "timestamp": "2026-02-04T21:56:22.323086",
+      "extra": null
+    }
+  ]
+}

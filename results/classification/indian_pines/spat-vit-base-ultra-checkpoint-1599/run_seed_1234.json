@@ -23,16 +23,16 @@
     "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
     "model": "HyperSIGMA"
   },
-  "seed": 5678,
+  "seed": 1234,
   "metrics": {
-    "overall_accuracy": 0.8574,
-    "kappa": 0.8381,
-    "average_accuracy": 0.9248,
-    "F1_macro": 0.7907,
+    "overall_accuracy": 0.8615,
+    "kappa": 0.8419,
+    "average_accuracy": 0.9202,
+    "F1_macro": 0.8336,
     "F1_weighted": null,
     "per_class_accuracy": null
   },
-  "timestamp": "2026-02-04T16:42:04.849900",
+  "timestamp": "2026-02-04T16:34:14.568312",
   "extra": {
     "num_runs": 1,
     "oa_std": 0.0,
@@ -40,28 +40,28 @@
     "kappa_std": 0.0,
     "per_run_results": [
       {
-        "overall_accuracy": 0.8574,
-        "average_accuracy": 0.9248,
-        "kappa": 0.8381,
-        "f1_weighted": 0.8592,
-        "f1_macro": 0.7907,
+        "overall_accuracy": 0.8615,
+        "average_accuracy": 0.9202,
+        "kappa": 0.8419,
+        "f1_weighted": 0.8624,
+        "f1_macro": 0.8336,
         "per_class_accuracy": [
           1.0,
-          0.7254187909686817,
-          0.7780645161290323,
-          0.989010989010989,
-          0.8504672897196262,
-          0.9866666666666667,
+          0.7115804806991989,
+          0.84,
+          1.0,
+          0.9158878504672897,
+          0.9629629629629629,
           1.0,
           1.0,
           1.0,
-          0.8516902944383861,
-          0.7970833333333334,
-          0.8420074349442379,
+          0.8505997818974919,
+          0.8495833333333334,
+          0.6951672862453532,
           1.0,
-          0.9818181818181818,
-          0.9939577039274925,
-          1.0
+          0.9487603305785124,
+          0.9667673716012085,
+          0.9824561403508771
         ]
       }
     ]

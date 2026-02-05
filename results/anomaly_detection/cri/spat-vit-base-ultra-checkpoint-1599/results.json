@@ -1,0 +1,202 @@
+{
+  "schema_version": "2.0",
+  "task": "anomaly_detection",
+  "dataset": "cri",
+  "checkpoint_name": "spat-vit-base-ultra-checkpoint-1599",
+  "checkpoint_path": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+  "experiment_name": "hypersigma_benchmark",
+  "timestamp": "2026-02-04T21:48:51.448303",
+  "model_config": {},
+  "experiment_config": {
+    "dataset": "cri",
+    "data_dir": "/home/jovyan/gnew-b200-2-datavol-1/chlee/Domain-independent-SpectralFM/hypersigma-benchmark/tasks/anomaly_detection/../../../data/benchmark/anomaly_detection/Pavia",
+    "mode": "ss",
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
+    "epochs": 10,
+    "batch_size": 1,
+    "lr": 6e-05,
+    "norm": "std",
+    "input_mode": "part",
+    "input_size": [
+      32,
+      32
+    ],
+    "model": "HyperSIGMA"
+  },
+  "num_seeds": 10,
+  "seeds": [
+    42,
+    123,
+    456,
+    789,
+    1111,
+    1234,
+    2024,
+    5678,
+    7777,
+    9999
+  ],
+  "summary_statistics": {
+    "AUC_ROC": {
+      "mean": 0.9997000000000001,
+      "std": 1.1102230246251565e-16,
+      "min": 0.9997,
+      "max": 0.9997,
+      "count": 10
+    },
+    "F1": {
+      "mean": 1.5784,
+      "std": 0.0,
+      "min": 1.5784,
+      "max": 1.5784,
+      "count": 10
+    },
+    "precision": {
+      "mean": 0.17430000000000004,
+      "std": 2.7755575615628914e-17,
+      "min": 0.1743,
+      "max": 0.1743,
+      "count": 10
+    },
+    "recall": {
+      "mean": 0.753,
+      "std": 0.0,
+      "min": 0.753,
+      "max": 0.753,
+      "count": 10
+    }
+  },
+  "individual_results": [
+    {
+      "seed": 42,
+      "metrics": {
+        "AUC_ROC": 0.9997,
+        "F1": 1.5784,
+        "precision": 0.1743,
+        "recall": 0.753,
+        "average_precision": null,
+        "threshold": null
+      },
+      "timestamp": "2026-02-04T20:22:38.026548",
+      "extra": null
+    },
+    {
+      "seed": 123,
+      "metrics": {
+        "AUC_ROC": 0.9997,
+        "F1": 1.5784,
+        "precision": 0.1743,
+        "recall": 0.753,
+        "average_precision": null,
+        "threshold": null
+      },
+      "timestamp": "2026-02-04T20:32:16.868125",
+      "extra": null
+    },
+    {
+      "seed": 456,
+      "metrics": {
+        "AUC_ROC": 0.9997,
+        "F1": 1.5784,
+        "precision": 0.1743,
+        "recall": 0.753,
+        "average_precision": null,
+        "threshold": null
+      },
+      "timestamp": "2026-02-04T20:41:33.384565",
+      "extra": null
+    },
+    {
+      "seed": 789,
+      "metrics": {
+        "AUC_ROC": 0.9997,
+        "F1": 1.5784,
+        "precision": 0.1743,
+        "recall": 0.753,
+        "average_precision": null,
+        "threshold": null
+      },
+      "timestamp": "2026-02-04T20:51:12.051614",
+      "extra": null
+    },
+    {
+      "seed": 1111,
+      "metrics": {
+        "AUC_ROC": 0.9997,
+        "F1": 1.5784,
+        "precision": 0.1743,
+        "recall": 0.753,
+        "average_precision": null,
+        "threshold": null
+      },
+      "timestamp": "2026-02-04T21:39:15.209700",
+      "extra": null
+    },
+    {
+      "seed": 1234,
+      "metrics": {
+        "AUC_ROC": 0.9997,
+        "F1": 1.5784,
+        "precision": 0.1743,
+        "recall": 0.753,
+        "average_precision": null,
+        "threshold": null
+      },
+      "timestamp": "2026-02-04T21:10:28.086148",
+      "extra": null
+    },
+    {
+      "seed": 2024,
+      "metrics": {
+        "AUC_ROC": 0.9997,
+        "F1": 1.5784,
+        "precision": 0.1743,
+        "recall": 0.753,
+        "average_precision": null,
+        "threshold": null
+      },
+      "timestamp": "2026-02-04T21:01:03.471885",
+      "extra": null
+    },
+    {
+      "seed": 5678,
+      "metrics": {
+        "AUC_ROC": 0.9997,
+        "F1": 1.5784,
+        "precision": 0.1743,
+        "recall": 0.753,
+        "average_precision": null,
+        "threshold": null
+      },
+      "timestamp": "2026-02-04T21:19:49.164539",
+      "extra": null
+    },
+    {
+      "seed": 7777,
+      "metrics": {
+        "AUC_ROC": 0.9997,
+        "F1": 1.5784,
+        "precision": 0.1743,
+        "recall": 0.753,
+        "average_precision": null,
+        "threshold": null
+      },
+      "timestamp": "2026-02-04T21:48:51.446809",
+      "extra": null
+    },
+    {
+      "seed": 9999,
+      "metrics": {
+        "AUC_ROC": 0.9997,
+        "F1": 1.5784,
+        "precision": 0.1743,
+        "recall": 0.753,
+        "average_precision": null,
+        "threshold": null
+      },
+      "timestamp": "2026-02-04T21:29:28.408060",
+      "extra": null
+    }
+  ]
+}

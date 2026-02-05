@@ -1,0 +1,36 @@
+{
+  "schema_version": "2.0",
+  "task": "anomaly_detection",
+  "dataset": "cri",
+  "checkpoint_name": "spat-vit-base-ultra-checkpoint-1599",
+  "checkpoint_path": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+  "experiment_name": "hypersigma_benchmark",
+  "model_config": {},
+  "experiment_config": {
+    "dataset": "cri",
+    "data_dir": "/home/jovyan/gnew-b200-2-datavol-1/chlee/Domain-independent-SpectralFM/hypersigma-benchmark/tasks/anomaly_detection/../../../data/benchmark/anomaly_detection/Pavia",
+    "mode": "ss",
+    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
+    "epochs": 10,
+    "batch_size": 1,
+    "lr": 6e-05,
+    "norm": "std",
+    "input_mode": "part",
+    "input_size": [
+      32,
+      32
+    ],
+    "model": "HyperSIGMA"
+  },
+  "seed": 1234,
+  "metrics": {
+    "AUC_ROC": 0.9997,
+    "F1": 1.5784,
+    "precision": 0.1743,
+    "recall": 0.753,
+    "average_precision": null,
+    "threshold": null
+  },
+  "timestamp": "2026-02-04T21:10:28.086148"
+}
