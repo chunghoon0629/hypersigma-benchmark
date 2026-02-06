@@ -3,19 +3,19 @@
   "task": "denoising",
   "dataset": "WDC",
   "checkpoint_name": "spat-vit-base-ultra-checkpoint-1599",
-  "checkpoint_path": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+  "checkpoint_path": "hypersigma-benchmark/pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
   "experiment_name": "hypersigma_benchmark",
   "model_config": {},
   "experiment_config": {
     "dataset": "WDC",
-    "spat_weights": "pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
-    "spec_weights": "pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
-    "epochs": 50,
+    "spat_weights": "hypersigma-benchmark/pretrained/spat-vit-base-ultra-checkpoint-1599.pth",
+    "spec_weights": "hypersigma-benchmark/pretrained/spec-vit-base-ultra-checkpoint-1599.pth",
+    "epochs": 200,
     "batch_size": 8,
     "lr": 0.0001,
     "patch_size": 64,
     "sigma_range": [
-      10,
+      70,
       70
     ],
     "num_tokens": 100,
@@ -23,10 +23,10 @@
   },
   "seed": 42,
   "metrics": {
-    "PSNR": 22.7753,
-    "SSIM": 0.8998,
-    "SAM": 12.7314,
+    "PSNR": 28.8939,
+    "SSIM": 0.974,
+    "SAM": 5.8845,
     "RMSE": null
   },
-  "timestamp": "2026-02-05T04:52:32.627592"
+  "timestamp": "2026-02-05T12:44:36.071499"
 }
