@@ -198,8 +198,8 @@ def evaluate(model, loader, device):
             x = x.to(device)
             output = model(x)
             pred = output.argmax(dim=1)
-            all_preds.extend(pred.cpu().numpy())
-            all_labels.extend(y.numpy())
+            all_preds.extend(pred.cpu().tolist())
+            all_labels.extend(y.tolist())
 
     return np.array(all_preds), np.array(all_labels)
 
@@ -233,7 +233,7 @@ def main():
     parser.add_argument('--wd', type=float, default=0.05)
 
     # Data split
-    parser.add_argument('--samples_per_class', type=int, default=10)
+    parser.add_argument('--samples_per_class', type=int, default=50)
     parser.add_argument('--val_samples', type=int, default=5)
 
     # Experiment
@@ -242,6 +242,8 @@ def main():
 
     # Output
     parser.add_argument('--output_dir', type=str, default='results/classification')
+    parser.add_argument('--save_predictions', action='store_true',
+                        help='Save per-run predictions as .npy files for visualization')
 
     args = parser.parse_args()
 
@@ -273,6 +275,13 @@ def main():
 
     # Results storage
     all_results = []
+
+    # Setup prediction saving directory
+    pred_dir = None
+    if args.save_predictions:
+        pred_dir = os.path.join(args.output_dir, f'{args.dataset}_HyperSIGMA_predictions')
+        os.makedirs(pred_dir, exist_ok=True)
+        print(f"Prediction save dir: {pred_dir}")
 
     for run in range(args.num_runs):
         seed = args.seed + run
@@ -372,6 +381,16 @@ def main():
         print(f"OA: {metrics_dict['overall_accuracy']:.4f}, "
               f"AA: {metrics_dict['average_accuracy']:.4f}, "
               f"Kappa: {metrics_dict['kappa']:.4f}")
+
+        # Save per-run predictions
+        if pred_dir is not None:
+            np.save(os.path.join(pred_dir, f'predictions_run_{run+1}.npy'), test_pred)
+            np.save(os.path.join(pred_dir, f'labels_run_{run+1}.npy'), test_true)
+            np.save(os.path.join(pred_dir, f'test_indices_run_{run+1}.npy'), test_idx_labeled)
+            if run == 0:
+                # Save spatial index mapping (flat indices into H*W grid)
+                np.save(os.path.join(pred_dir, f'spatial_indices.npy'), test_idx_labeled)
+            print(f"  Saved predictions for run {run+1}")
 
         all_results.append(metrics_dict)
 
